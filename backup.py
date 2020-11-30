@@ -59,7 +59,7 @@ def backup_namespace(namespace, backup_path, min_date=None):
             os.makedirs(study_dir)
         zip_file = study_dir.joinpath(f'{study.formatted_description}.zip')
         print(f'\tPatient Name: {study.patient_name}\n\tPatient ID: {study.patientid}\n\tStudy date: {study.study_date}\n\tCreated: {study.created}\n\tUpdated: {study.updated}')
-        print(zip_file)
+        print(f'\tDownloading to: {zip_file}')
 
         if not zip_file.exists():
             logging.info(f'\tBacking up {study.patient_name} to {zip_file}.')
