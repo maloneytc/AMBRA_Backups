@@ -3,9 +3,9 @@ import setuptools
 with open("README.md", 'r') as fopen:
     long_description = fopen.read()
 
-setuptools.setup(name='AMBRA_Utils',
+setuptools.setup(name='AMBRA_Backups',
     version='0.1',
-    description='Various utility classes for connecting to the AMBRA API and interacting with the data.',
+    description='Various utility classes for connecting to the AMBRA API and backing up study data.',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='',
