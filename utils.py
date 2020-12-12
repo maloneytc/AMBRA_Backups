@@ -1,4 +1,4 @@
-from pathlib import path
+from pathlib import Path
 import zipfile
 import logging
 import pandas as pd
@@ -23,12 +23,19 @@ def extract(zip_file):
     return extraction_directory
 
 # ------------------------------------------------------------------------------
-def convert_nifti(dicom_directory):
-    pass
-    ## XXX:
+def convert_nifti(dicom_directory, output_directory):
+    """
+    Passes the dicom_directory to dcm2niix and outputs the nifti, bids and other
+    files to the output_directory path.
+    """
+    dcm2nii_path = Path(__file__).parent.joinpath("ExternalPrograms","dcm2niix")
+    if not dcm2nii_path.exists():
+        raise Exception(f'Could not locate dcm2nii at {dcm2nii_path}')
+    dcm2nii = [str(dcm2nii_path), "-b", "y", "-f", scan_name, "-z", "y", this_dicom_dir]
+    subprocess.call(dcm2nii)
 
 # ------------------------------------------------------------------------------
-def extract_and_convert(zip_file):
+def extract_and_convert(zip_file, output_directory):
     """
     Extracts dicoms from the zip_file and converts them to nifti using dcm2nii.
 
@@ -36,8 +43,8 @@ def extract_and_convert(zip_file):
     The nifti files are placed into this directory as well and the extracted dicoms
     are deleted after conversion.
     """
-    extract(zip_file)
-    ## XXX: Still need to convert
+    extraction_directory = extract(zip_file)
+    convert_nifti(extraction_directory, output_directory)
 
 # ------------------------------------------------------------------------------
 def html_to_dataframe(html):
