@@ -43,17 +43,24 @@ def convert_nifti(dicom_directory, output_directory):
     subprocess.call(dcm2nii)
 
 # ------------------------------------------------------------------------------
-def extract_and_convert(zip_file, output_directory):
+def extract_and_convert(zip_file, output_directory, cleanup=False):
     """
     Extracts dicoms from the zip_file and converts them to nifti using dcm2nii.
 
     Files are extracted into a directory with the same name as the zip_file.
     The nifti files are placed into this directory as well and the extracted dicoms
     are deleted after conversion.
+
+    cleanup: bool
+        If True, the extracted data and directory will be deleted after nifti conversion.
     """
     extraction_directory = extract(zip_file)
     convert_nifti(extraction_directory, output_directory)
-	
+
+    if extraction_directory.exists() and cleanup:
+        logging.info(f'Removing {extraction_directory}.')
+        os.rmdir(extraction_directory)
+
 # ------------------------------------------------------------------------------
 def html_to_dataframe(html):
     """
