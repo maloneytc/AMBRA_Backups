@@ -3,6 +3,7 @@ import zipfile
 import logging
 import subprocess
 import os
+import shutil
 import pandas as pd
 
 # ------------------------------------------------------------------------------
@@ -59,7 +60,7 @@ def extract_and_convert(zip_file, output_directory, cleanup=False):
 
     if extraction_directory.exists() and cleanup:
         logging.info(f'Removing {extraction_directory}.')
-        os.rmdir(extraction_directory)
+        shutil.rmtree(extraction_directory)
 
 # ------------------------------------------------------------------------------
 def html_to_dataframe(html):
