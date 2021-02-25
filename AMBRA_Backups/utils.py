@@ -80,3 +80,18 @@ def html_to_dataframe(html):
         ## XXX: Merge into report_df
 
     return report_df
+    
+# ------------------------------------------------------------------------------
+def strip_ext(input):
+    """
+    Removes the suffix from .nii and .nii.gz files and returns the stem.
+    """
+    stem = Path(input.name)
+    suffix = stem.suffix
+    if suffix == '.gz':
+        stem = stem.with_suffix('')
+        suffix = stem.suffix
+
+    assert stem.suffix == '.nii'
+
+    return stem.with_suffix('')
