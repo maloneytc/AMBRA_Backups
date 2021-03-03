@@ -4,6 +4,7 @@ from pathlib import Path
 import logging
 from datetime import datetime
 import pdb
+import utils
 
 from AMBRA_Utils import Api
 
@@ -33,7 +34,7 @@ def get_api(config_path=None):
     return ambra
 
 # ------------------------------------------------------------------------------
-def backup_namespace(namespace, backup_path, min_date=None):
+def backup_namespace(namespace, backup_path, min_date=None, convert=False):
     """
     Backup all subject data belonging to the input namespace. If min_date is set
     then only subject data that has been updated after that date will be downloaded.
@@ -42,6 +43,8 @@ def backup_namespace(namespace, backup_path, min_date=None):
     backup_path: String, Path; Path to where the data will be stored. Must exist.
     min_date: datetime object; If not None then will backup all studies updated
         after the specified date.
+    convert: If True, will convert the dicoms to nifti and put them in a directory
+        called *_nii
     """
     assert isinstance(namespace, Api.Namespace)
     backup_log = backup_path.joinpath('backups.log')
@@ -57,20 +60,29 @@ def backup_namespace(namespace, backup_path, min_date=None):
         study_dir = backup_path.joinpath(f'{study.patient_name}', f'{study.modality}_{study.study_date}')
         if not study_dir.exists():
             os.makedirs(study_dir)
-        zip_file = study_dir.joinpath(f'{study.formatted_description}.zip')
-        print(f'\tPatient Name: {study.patient_name}\n\tPatient ID: {study.patientid}\n\tStudy date: {study.study_date}\n\tCreated: {study.created}\n\tUpdated: {study.updated}')
-        print(f'\tDownloading to: {zip_file}')
+
+        zip_stem = study.formatted_description
+        if zip_stem[0] == '.':
+            zip_stem.replace('.', '_')
+        zip_file = study_dir.joinpath(f'{zip_stem}.zip')
+        logging.info(f'\tPatient Name: {study.patient_name}\n\tPatient ID: {study.patientid}\n\tStudy date: {study.study_date}\n\tCreated: {study.created}\n\tUpdated: {study.updated}')
 
         if not zip_file.exists():
             logging.info(f'\tBacking up {study.patient_name} to {zip_file}.')
             study.download(zip_file)
-            #pdb.set_trace()
         else:
             logging.info(f'\tSkipping backup of {study.patient_name} {study.formatted_description}, zip file already exists.')
-        print(20*'-')
+
+        if convert:
+            nifti_dir = study_dir.joinpath(f'{zip_stem}_nii')
+            if not nifti_dir.exists():
+                try:
+                    utils.extract_and_convert(zip_file, nifti_dir, cleanup=True)
+                except Exception as e:
+                    logging.error(e)
 
 # ------------------------------------------------------------------------------
-def backup_account(account_name, backup_path, min_date=None, groups=True, locations=False):
+def backup_account(account_name, backup_path, min_date=None, groups=True, locations=False, convert=False):
     """
 
     account_name: String; Name of the account to backup.
@@ -79,6 +91,8 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
         after the specified date.
     groups: bool; If True then all account groups will be backed up.
     locations: bool; If True then all account locations will be backed up.
+    convert: If True, will convert the dicoms to nifti and put them in a directory
+        called *_nii
     """
     backup_path = Path(backup_path)
     assert backup_path.exists()
@@ -94,9 +108,9 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
         logging.info(f'Backing up all groups for account {account_name}.')
         for group in account.get_groups():
             print(20*'=' + f'\n{group}\n' + 20*'=')
-            backup_namespace(group, backup_path, min_date=min_date)
+            backup_namespace(group, backup_path, min_date=min_date, convert=convert)
     if locations:
         logging.info(f'Backing up all locations for account {account_name}.')
         for location in account.get_locations():
             print(location)
-            backup_namespace(location, backup_path, min_date=min_date)
+            backup_namespace(location, backup_path, min_date=min_date, convert=convert)
