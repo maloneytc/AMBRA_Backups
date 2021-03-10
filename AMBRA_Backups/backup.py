@@ -6,32 +6,8 @@ from datetime import datetime
 import pdb
 from AMBRA_Backups import utils
 
-from AMBRA_Utils import Api
+from AMBRA_Utils import Api, utilities
 
-# ------------------------------------------------------------------------------
-def get_api(config_path=None):
-    """
-    Gets user credentials from config file with the following format:
-      [ambra]
-      user_name = XXX
-      password = XXX
-
-    If the config_path input is None, it will look for the file ~/.ambra_credentials
-
-    Returns an object of the AMBRA_Utils.Api class
-    """
-    if config_path:
-        config_file = Path(config_path)
-    else:
-        config_file = Path.home().joinpath('.ambra_credentials')
-    if not config_file.exists():
-        logging.error(f'Could not find the credentials file: {config_file}')
-
-    config = configparser.ConfigParser()
-    config.read(config_file)
-
-    ambra = Api.Api(config['ambra']['user_name'], config['ambra']['password'])
-    return ambra
 
 # ------------------------------------------------------------------------------
 def backup_namespace(namespace, backup_path, min_date=None, convert=False):
@@ -101,7 +77,7 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
     logging.basicConfig(filename=backup_log, format='%(levelname)s: %(asctime)s: %(message)s', level=logging.INFO)
     logging.info(f'Backing up studies for account {account_name}.')
 
-    ambra = get_api()
+    ambra = utilities.get_api()
     account = ambra.get_account_by_name(account_name)
 
     if groups:
