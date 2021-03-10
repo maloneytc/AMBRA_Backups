@@ -10,6 +10,40 @@ from AMBRA_Utils import Api, utilities
 
 
 # ------------------------------------------------------------------------------
+def backup_study(study, backup_path, convert=False):
+    """
+    Backup the given study to the backup_path.
+
+    convert: If True, will convert the dicoms to nifti and put them in a directory
+        called *_nii
+    """
+    study_dir = backup_path.joinpath(f'{study.patient_name}', f'{study.modality}_{study.study_date}')
+    if not study_dir.exists():
+        os.makedirs(study_dir)
+
+    zip_stem = study.formatted_description
+    if zip_stem == '':
+        zip_stem = f'{study.modality}_{study.study_date}'
+    if zip_stem[0] == '.':
+        zip_stem.replace('.', '_')
+    zip_file = study_dir.joinpath(f'{zip_stem}.zip')
+    logging.info(f'\tPatient Name: {study.patient_name}\n\tPatient ID: {study.patientid}\n\tStudy date: {study.study_date}\n\tCreated: {study.created}\n\tUpdated: {study.updated}')
+
+    if not zip_file.exists():
+        logging.info(f'\tBacking up {study.patient_name} to {zip_file}.')
+        study.download(zip_file)
+    else:
+        logging.info(f'\tSkipping backup of {study.patient_name} {study.formatted_description}, zip file already exists.')
+
+    if convert:
+        nifti_dir = study_dir.joinpath(f'{zip_stem}_nii')
+        if not nifti_dir.exists():
+            try:
+                utils.extract_and_convert(zip_file, nifti_dir, cleanup=True)
+            except Exception as e:
+                logging.error(e)
+
+# ------------------------------------------------------------------------------
 def backup_namespace(namespace, backup_path, min_date=None, convert=False):
     """
     Backup all subject data belonging to the input namespace. If min_date is set
@@ -33,29 +67,7 @@ def backup_namespace(namespace, backup_path, min_date=None, convert=False):
         studies_to_backup = namespace.get_studies()
 
     for study in studies_to_backup:
-        study_dir = backup_path.joinpath(f'{study.patient_name}', f'{study.modality}_{study.study_date}')
-        if not study_dir.exists():
-            os.makedirs(study_dir)
-
-        zip_stem = study.formatted_description
-        if zip_stem[0] == '.':
-            zip_stem.replace('.', '_')
-        zip_file = study_dir.joinpath(f'{zip_stem}.zip')
-        logging.info(f'\tPatient Name: {study.patient_name}\n\tPatient ID: {study.patientid}\n\tStudy date: {study.study_date}\n\tCreated: {study.created}\n\tUpdated: {study.updated}')
-
-        if not zip_file.exists():
-            logging.info(f'\tBacking up {study.patient_name} to {zip_file}.')
-            study.download(zip_file)
-        else:
-            logging.info(f'\tSkipping backup of {study.patient_name} {study.formatted_description}, zip file already exists.')
-
-        if convert:
-            nifti_dir = study_dir.joinpath(f'{zip_stem}_nii')
-            if not nifti_dir.exists():
-                try:
-                    utils.extract_and_convert(zip_file, nifti_dir, cleanup=True)
-                except Exception as e:
-                    logging.error(e)
+        backup_study(study, backup_path, convert=convert)
 
 # ------------------------------------------------------------------------------
 def backup_account(account_name, backup_path, min_date=None, groups=True, locations=False, convert=False):
