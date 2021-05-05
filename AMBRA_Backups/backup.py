@@ -10,14 +10,28 @@ from AMBRA_Utils import Api, utilities
 
 
 # ------------------------------------------------------------------------------
-def backup_study(study, backup_path, convert=False):
+def backup_study(study, backup_path, convert=False, use_uid=False):
     """
     Backup the given study to the backup_path.
 
+    Inputs:
+    -------
+    study:
+
+    backup_path: Path object
+        Path object to the main backup directory.
+
     convert: If True, will convert the dicoms to nifti and put them in a directory
         called *_nii
+
+    use_uid: bool
+        If True, will include the study uid in the data directory name.
     """
-    study_dir = backup_path.joinpath(f'{study.patient_name}', f'{study.modality}_{study.study_date}')
+    if use_uid:
+        uid_string = study.study_uid.replace('.', '_')
+        study_dir = backup_path.joinpath(f'{study.patient_name}', f'{study.modality}_{uid_string}_{study.study_date}')
+    else:
+        study_dir = backup_path.joinpath(f'{study.patient_name}', f'{study.modality}_{study.study_date}')
     if not study_dir.exists():
         os.makedirs(study_dir)
 
