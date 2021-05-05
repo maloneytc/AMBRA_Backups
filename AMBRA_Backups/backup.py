@@ -58,7 +58,7 @@ def backup_study(study, backup_path, convert=False, use_uid=False):
                 logging.error(e)
 
 # ------------------------------------------------------------------------------
-def backup_namespace(namespace, backup_path, min_date=None, convert=False):
+def backup_namespace(namespace, backup_path, min_date=None, convert=False, use_uid=False):
     """
     Backup all subject data belonging to the input namespace. If min_date is set
     then only subject data that has been updated after that date will be downloaded.
@@ -81,10 +81,10 @@ def backup_namespace(namespace, backup_path, min_date=None, convert=False):
         studies_to_backup = namespace.get_studies()
 
     for study in studies_to_backup:
-        backup_study(study, backup_path, convert=convert)
+        backup_study(study, backup_path, convert=convert, use_uid=use_uid)
 
 # ------------------------------------------------------------------------------
-def backup_account(account_name, backup_path, min_date=None, groups=True, locations=False, convert=False):
+def backup_account(account_name, backup_path, min_date=None, groups=True, locations=False, convert=False, use_uid=False):
     """
 
     account_name: String; Name of the account to backup.
@@ -110,9 +110,9 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
         logging.info(f'Backing up all groups for account {account_name}.')
         for group in account.get_groups():
             print(20*'=' + f'\n{group}\n' + 20*'=')
-            backup_namespace(group, backup_path, min_date=min_date, convert=convert)
+            backup_namespace(group, backup_path, min_date=min_date, convert=convert, use_uid=use_uid)
     if locations:
         logging.info(f'Backing up all locations for account {account_name}.')
         for location in account.get_locations():
             print(location)
-            backup_namespace(location, backup_path, min_date=min_date, convert=convert)
+            backup_namespace(location, backup_path, min_date=min_date, convert=convert, use_uid=use_uid)
