@@ -81,7 +81,11 @@ def backup_namespace(namespace, backup_path, min_date=None, convert=False, use_u
         studies_to_backup = namespace.get_studies()
 
     for study in studies_to_backup:
-        backup_study(study, backup_path, convert=convert, use_uid=use_uid)
+        try:
+            backup_study(study, backup_path, convert=convert, use_uid=use_uid)
+        except Exception as e:
+            print(e)
+            logging.error(e)
 
 # ------------------------------------------------------------------------------
 def backup_account(account_name, backup_path, min_date=None, groups=True, locations=False, convert=False, use_uid=False):
