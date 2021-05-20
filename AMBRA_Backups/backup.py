@@ -8,6 +8,15 @@ from AMBRA_Backups import utils
 
 from AMBRA_Utils import Api, utilities
 
+# ------------------------------------------------------------------------------
+def get_zip_stem(study):
+    zip_stem = study.formatted_description
+    if zip_stem == '':
+        zip_stem = f'{study.modality}_{study.study_date}'
+    if zip_stem[0] == '.':
+        zip_stem.replace('.', '_')
+
+    return zip_stem
 
 # ------------------------------------------------------------------------------
 def backup_study(study, backup_path, convert=False, use_uid=False):
@@ -26,6 +35,9 @@ def backup_study(study, backup_path, convert=False, use_uid=False):
 
     use_uid: bool
         If True, will include the study uid in the data directory name.
+
+    database: Database object
+        Object of the AMBRA_Backups.database.Database class.
     """
     if use_uid:
         uid_string = study.study_uid.replace('.', '_')
@@ -35,11 +47,7 @@ def backup_study(study, backup_path, convert=False, use_uid=False):
     if not study_dir.exists():
         os.makedirs(study_dir)
 
-    zip_stem = study.formatted_description
-    if zip_stem == '':
-        zip_stem = f'{study.modality}_{study.study_date}'
-    if zip_stem[0] == '.':
-        zip_stem.replace('.', '_')
+    zip_stem = get_zip_stem(study)
     zip_file = study_dir.joinpath(f'{zip_stem}.zip')
     logging.info(f'\tPatient Name: {study.patient_name}\n\tPatient ID: {study.patientid}\n\tStudy date: {study.study_date}\n\tCreated: {study.created}\n\tUpdated: {study.updated}')
 
@@ -63,12 +71,20 @@ def backup_namespace(namespace, backup_path, min_date=None, convert=False, use_u
     Backup all subject data belonging to the input namespace. If min_date is set
     then only subject data that has been updated after that date will be downloaded.
 
+    Inputs:
+    --------
     namespace: Object of the Api.Namespace class or one of its subclasses.
+
     backup_path: String, Path; Path to where the data will be stored. Must exist.
+
     min_date: datetime object; If not None then will backup all studies updated
         after the specified date.
+
     convert: If True, will convert the dicoms to nifti and put them in a directory
         called *_nii
+
+    database: Database object
+        Object of the AMBRA_Backups.database.Database class.
     """
     assert isinstance(namespace, Api.Namespace)
     backup_log = backup_path.joinpath('backups.log')
@@ -90,15 +106,24 @@ def backup_namespace(namespace, backup_path, min_date=None, convert=False, use_u
 # ------------------------------------------------------------------------------
 def backup_account(account_name, backup_path, min_date=None, groups=True, locations=False, convert=False, use_uid=False):
     """
-
+    Inputs:
+    -------
     account_name: String; Name of the account to backup.
+
     backup_path: String, Path; Path to where the data will be stored. Must exist.
+
     min_date: datetime object; If not None then will backup all studies updated
         after the specified date.
+
     groups: bool; If True then all account groups will be backed up.
+
     locations: bool; If True then all account locations will be backed up.
+
     convert: If True, will convert the dicoms to nifti and put them in a directory
         called *_nii
+
+    database: Database object
+        Object of the AMBRA_Backups.database.Database class.
     """
     backup_path = Path(backup_path)
     assert backup_path.exists()
@@ -120,3 +145,26 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
         for location in account.get_locations():
             print(location)
             backup_namespace(location, backup_path, min_date=min_date, convert=convert, use_uid=use_uid)
+
+# ------------------------------------------------------------------------------
+def update_database(database, namespace):
+    """
+    Inputs:
+    -------
+    database: Object of the Database class
+
+    namespace: Object of the Namespace class or one of it's subclasses.
+    """
+    last_backup = database.get_last_backup(namespace.name, namespace.namespace_type)
+    current_backup = datetime.now()
+    if last_backup is None:
+        studies = namespace.get_studies()
+    else:
+        studies = namespace.get_studies_after(last_backup)
+    for study in studies:
+        database.insert_study(study)
+        series = study.get_series()
+        for this_series in series:
+            database.insert_series(this_series)
+
+    database.insert_update_datetime(namespace.name, namespace.namespace_type, current_backup)
