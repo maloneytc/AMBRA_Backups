@@ -40,7 +40,7 @@ def convert_nifti(dicom_directory, output_directory):
         os.makedirs(output_directory)
 
 
-    dcm2nii = [str(dcm2nii_path), "-b", "y", "-f", "%d_%z_%s", "-z", "y", "-o", str(output_directory), str(dicom_directory)]
+    dcm2nii = [str(dcm2nii_path), "-b", "y", "-f", "%d_%z_%s_%j", "-z", "y", "-o", str(output_directory), str(dicom_directory)]
     subprocess.call(dcm2nii)
 
 # ------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ def html_to_dataframe(html):
         ## XXX: Merge into report_df
 
     return report_df
-    
+
 # ------------------------------------------------------------------------------
 def strip_ext(input):
     """
