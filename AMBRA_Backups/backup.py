@@ -167,4 +167,4 @@ def update_database(database, namespace):
         for this_series in series:
             database.insert_series(this_series)
 
-    database.insert_update_datetime(namespace.name, namespace.namespace_type, current_backup)
+    database.insert_update_datetime(namespace.name, namespace.namespace_type, namespace.uuid, current_backup)

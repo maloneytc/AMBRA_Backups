@@ -126,7 +126,7 @@ class Database():
             connection.commit()
 
     # --------------------------------------------------------------------------
-    def insert_update_datetime(self, namespace_name, namespace_type, date_time):
+    def insert_update_datetime(self, namespace_name, namespace_type, namespace_uuid, date_time):
         """
         Inserts the datetime into the last_backup column of the info table.
 
@@ -141,13 +141,11 @@ class Database():
         """
         assert namespace_type in ['Group', 'Location']
 
-
-
         insert_update_query = """
-        INSERT INTO backup_info (namespace_name, namespace_type, last_backup)
-        VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE last_backup=%s;
+        INSERT INTO backup_info (namespace_name, namespace_type, namespace_uuid, last_backup)
+        VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE last_backup=%s;
         """
-        datetime_record = (namespace_name, namespace_type, date_time.strftime('%Y-%m-%d %H:%M:%S'),date_time.strftime('%Y-%m-%d %H:%M:%S'))
+        datetime_record = (namespace_name, namespace_type, namespace_uuid, date_time.strftime('%Y-%m-%d %H:%M:%S'),date_time.strftime('%Y-%m-%d %H:%M:%S'))
         with self.connection.cursor() as cursor:
             cursor.execute(insert_update_query, datetime_record)
             self.connection.commit()
@@ -200,7 +198,7 @@ class Database():
          %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, (SELECT id from institutions WHERE site_number=%s))
         """
         study_record = (study.patientid,
-                        study.attachment_count, len(study.get_series()), study.study_uid,
+                        study.attachment_count, len(list(study.get_series())), study.study_uid,
                         study.formatted_description, study.updated, study.study_date,
                         study.created, study.modality, study.phi_namespace,
                         study.storage_namespace, study.patientid[0:2])
@@ -315,6 +313,27 @@ class Database():
             download_query = """UPDATE studies SET is_downloaded = TRUE, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
             cursor.execute(download_query, (str(zip_path), str(nifti_dir), download_date, study_uid))
             self.connection.commit()
+            
+    # --------------------------------------------------------------------------
+    def study_download_date(self, study_uid):
+        """
+        Returns the download date if the study with the given study_uid has been marked as downloaded in the database.
+        If the study is not marked as downloaded then 'None' will be returned.
+
+        Inputs:
+        -----------
+        study_uid: str
+            uid of the study to be marked as downloaded.
+        """
+        with self.connection.cursor() as cursor:
+            #download_query = """UPDATE studies SET is_downloaded = TRUE, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
+            download_query = """SELECT is_downloaded, download_date FROM studies WHERE study_uid=%s;"""
+            cursor.execute(download_query, (study_uid,))
+            is_downloaded, download_date = result = cursor.fetchone()
+        if is_downloaded:
+            return download_date
+        
+        return is_downloaded
 
     # --------------------------------------------------------------------------
     def add_nifti_paths(self, backup_path, nifti_directory, series):

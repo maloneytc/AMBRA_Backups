@@ -4,6 +4,7 @@ CREATE TABLE `backup_info` (
   /*`id` int NOT NULL AUTO_INCREMENT,*/
   `namespace_name` varchar(255) DEFAULT NULL,
   `namespace_type` varchar(9) NOT NULL CHECK (`namespace_type` IN ('Group', 'Location')),
+  `namespace_uuid` varchar(255) NOT NULL,
   `last_backup` datetime DEFAULT NULL,
   /*PRIMARY KEY (`id`)*/
   UNIQUE KEY `id_namespace` (`namespace_name`, `namespace_type`)
@@ -17,7 +18,7 @@ CREATE TABLE `crf` (
   `record_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `crf_name` varchar(255) DEFAULT NULL,
   `html_path` varchar(255) DEFAULT NULL,
-  'csv_path' varchar(255) DEFAULT NULL,
+  `csv_path` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
