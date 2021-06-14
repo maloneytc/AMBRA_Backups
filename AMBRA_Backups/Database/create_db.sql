@@ -4,6 +4,7 @@ CREATE TABLE `backup_info` (
   /*`id` int NOT NULL AUTO_INCREMENT,*/
   `namespace_name` varchar(255) DEFAULT NULL,
   `namespace_type` varchar(9) NOT NULL CHECK (`namespace_type` IN ('Group', 'Location')),
+  `namespace_id` varchar(255) NOT NULL,
   `namespace_uuid` varchar(255) NOT NULL,
   `last_backup` datetime DEFAULT NULL,
   /*PRIMARY KEY (`id`)*/
@@ -63,6 +64,7 @@ CREATE TABLE `studies` (
   `attachment_count` int DEFAULT NULL,
   `series_count` int DEFAULT NULL,
   `study_uid` varchar(255) NOT NULL,
+  `uuid` varchar(255) NOT NULL,
   `study_description` varchar(255) DEFAULT NULL,
   `id_series_name` int DEFAULT NULL,
   `is_downloaded` tinyint DEFAULT NULL,
