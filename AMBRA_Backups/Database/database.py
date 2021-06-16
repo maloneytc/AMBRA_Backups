@@ -126,7 +126,7 @@ class Database():
             connection.commit()
 
     # --------------------------------------------------------------------------
-    def insert_update_datetime(self, namespace_name, namespace_type, namespace_uuid, date_time):
+    def insert_update_datetime(self, namespace_name, namespace_type, namespace_id, namespace_uuid, date_time):
         """
         Inserts the datetime into the last_backup column of the info table.
 
@@ -142,10 +142,10 @@ class Database():
         assert namespace_type in ['Group', 'Location']
 
         insert_update_query = """
-        INSERT INTO backup_info (namespace_name, namespace_type, namespace_uuid, last_backup)
-        VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE last_backup=%s;
+        INSERT INTO backup_info (namespace_name, namespace_type, namespace_id, namespace_uuid, last_backup)
+        VALUES (%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE last_backup=%s;
         """
-        datetime_record = (namespace_name, namespace_type, namespace_uuid, date_time.strftime('%Y-%m-%d %H:%M:%S'),date_time.strftime('%Y-%m-%d %H:%M:%S'))
+        datetime_record = (namespace_name, namespace_type, namespace_id, namespace_uuid, date_time.strftime('%Y-%m-%d %H:%M:%S'),date_time.strftime('%Y-%m-%d %H:%M:%S'))
         with self.connection.cursor() as cursor:
             cursor.execute(insert_update_query, datetime_record)
             self.connection.commit()
@@ -191,17 +191,17 @@ class Database():
         insert_study_query = """
         INSERT IGNORE INTO studies
         (id_patient,
-        attachment_count, series_count, study_uid,
+        attachment_count, series_count, study_uid, uuid,
         study_description, updated, study_date, created_date,
-        modality, phi_namespace, storage_namespace, institution_id)
+        modality, phi_namespace, storage_namespace)
         VALUES ((SELECT patients.id FROM patients WHERE patients.patient_id=%s),
-         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, (SELECT id from institutions WHERE site_number=%s))
+         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         study_record = (study.patientid,
                         study.attachment_count, len(list(study.get_series())), study.study_uid,
-                        study.formatted_description, study.updated, study.study_date,
+                        study.uuid, study.formatted_description, study.updated, study.study_date,
                         study.created, study.modality, study.phi_namespace,
-                        study.storage_namespace, study.patientid[0:2])
+                        study.storage_namespace)
 
         with self.connection.cursor() as cursor:
             cursor.execute(insert_study_query, study_record)
@@ -313,7 +313,7 @@ class Database():
             download_query = """UPDATE studies SET is_downloaded = TRUE, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
             cursor.execute(download_query, (str(zip_path), str(nifti_dir), download_date, study_uid))
             self.connection.commit()
-            
+
     # --------------------------------------------------------------------------
     def study_download_date(self, study_uid):
         """
@@ -329,11 +329,46 @@ class Database():
             #download_query = """UPDATE studies SET is_downloaded = TRUE, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
             download_query = """SELECT is_downloaded, download_date FROM studies WHERE study_uid=%s;"""
             cursor.execute(download_query, (study_uid,))
-            is_downloaded, download_date = result = cursor.fetchone()
+            is_downloaded, download_date = cursor.fetchone()
         if is_downloaded:
             return download_date
-        
+
         return is_downloaded
+
+    # --------------------------------------------------------------------------
+    def studies_not_downloaded(self):
+        """
+        Returns a list of study_uids from studies that have not been downloaded.
+        """
+        with self.connection.cursor(buffered=True) as cursor:
+            download_query = """SELECT studies.uuid, studies.study_uid, studies.phi_namespace, backup_info.namespace_name
+                                FROM studies INNER JOIN backup_info ON studies.phi_namespace = backup_info.namespace_id
+                                WHERE studies.is_downloaded IS NULL OR studies.is_downloaded=FALSE;"""
+            #download_query = """SELECT studies.id
+            #                    FROM studies
+            #                    WHERE studies.is_downloaded IS NULL OR studies.is_downloaded=FALSE;"""
+            cursor.execute(download_query)
+            while True:
+                results = cursor.fetchmany(10)
+                if not results:
+                    break
+                for result in results:
+                    yield result
+
+    # --------------------------------------------------------------------------
+    def get_study_info_by_id_study(self, id_study):
+        """
+        Returns selected info for the study whose id in the studies table mathces id_study.
+        """
+        with self.connection.cursor() as cursor:
+            download_query = """SELECT studies.uuid, studies.study_uid, studies.phi_namespace, backup_info.namespace_name
+                                FROM studies INNER JOIN backup_info ON studies.phi_namespace = backup_info.namespace_id
+                                WHERE studies.id=%s;"""
+
+            cursor.execute(download_query, (id_study,))
+
+            result = cursor.fetchone()
+            return result
 
     # --------------------------------------------------------------------------
     def add_nifti_paths(self, backup_path, nifti_directory, series):
