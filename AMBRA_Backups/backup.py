@@ -4,8 +4,10 @@ from pathlib import Path
 import logging
 from datetime import datetime
 import pdb
-from AMBRA_Backups import utils
 
+from ambra_sdk.exceptions.storage import NotFound
+
+from AMBRA_Backups import utils
 from AMBRA_Utils import Api, utilities
 
 # ------------------------------------------------------------------------------
@@ -19,7 +21,7 @@ def get_zip_stem(study):
     return zip_stem
 
 # ------------------------------------------------------------------------------
-def backup_study(study, backup_path, convert=False, use_uid=False):
+def backup_study(study, backup_path, convert=False, use_uid=False, force=False):
     """
     Backup the given study to the backup_path.
 
@@ -36,8 +38,8 @@ def backup_study(study, backup_path, convert=False, use_uid=False):
     use_uid: bool
         If True, will include the study uid in the data directory name.
 
-    database: Database object
-        Object of the AMBRA_Backups.database.Database class.
+    force: bool
+        If True, will download the study regardless of whether a zip file currently exists.
     """
     if use_uid:
         uid_string = study.study_uid.replace('.', '_')
@@ -51,7 +53,7 @@ def backup_study(study, backup_path, convert=False, use_uid=False):
     zip_file = study_dir.joinpath(f'{zip_stem}.zip')
     logging.info(f'\tPatient Name: {study.patient_name}\n\tPatient ID: {study.patientid}\n\tStudy date: {study.study_date}\n\tCreated: {study.created}\n\tUpdated: {study.updated}')
 
-    if not zip_file.exists():
+    if (not zip_file.exists()) or force:
         logging.info(f'\tBacking up {study.patient_name} to {zip_file}.')
         study.download(zip_file)
     else:
@@ -59,11 +61,15 @@ def backup_study(study, backup_path, convert=False, use_uid=False):
 
     if convert:
         nifti_dir = study_dir.joinpath(f'{zip_stem}_nii')
-        if not nifti_dir.exists():
+        if (not nifti_dir.exists()) or force:
             try:
                 utils.extract_and_convert(zip_file, nifti_dir, cleanup=True)
             except Exception as e:
                 logging.error(e)
+
+        return zip_file, nifti_dir
+
+    return zip_file, None
 
 # ------------------------------------------------------------------------------
 def backup_namespace(namespace, backup_path, min_date=None, convert=False, use_uid=False):
@@ -162,9 +168,12 @@ def update_database(database, namespace):
     else:
         studies = namespace.get_studies_after(last_backup)
     for study in studies:
-        database.insert_study(study)
-        series = study.get_series()
-        for this_series in series:
-            database.insert_series(this_series)
+        try:
+            database.insert_study(study)
+            series = study.get_series()
+            for this_series in series:
+                database.insert_series(this_series)
+        except NotFound:
+            print(f'Could not find the study {study.patient_name}: {study.uuid}.')
 
-    database.insert_update_datetime(namespace.name, namespace.namespace_type, namespace.uuid, current_backup)
+    database.insert_update_datetime(namespace.name, namespace.namespace_type, namespace.namespace_id, namespace.uuid, current_backup)

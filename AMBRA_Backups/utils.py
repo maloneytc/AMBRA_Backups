@@ -39,8 +39,13 @@ def convert_nifti(dicom_directory, output_directory):
     if not output_directory.exists():
         os.makedirs(output_directory)
 
+    dcm2nii = [str(dcm2nii_path),
+               "-b", "y",
+               "-f", "%d_%z_%s_%j",
+               "-z", "y",
+               "-o", str(output_directory),
+               str(dicom_directory)]
 
-    dcm2nii = [str(dcm2nii_path), "-b", "y", "-f", "%d_%z_%s_%j", "-z", "y", "-o", str(output_directory), str(dicom_directory)]
     subprocess.call(dcm2nii)
 
 # ------------------------------------------------------------------------------
