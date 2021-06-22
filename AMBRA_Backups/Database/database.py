@@ -168,6 +168,20 @@ class Database():
         return result[0]
 
     # --------------------------------------------------------------------------
+    def get_study_by_uid(self, uid):
+        """
+
+        """
+        select_query = """SELECT id FROM studies WHERE studies.study_uid=%s"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(select_query, (uid, ))
+            result = cursor.fetchone()
+
+        if result is None:
+            return None
+        return result[0]
+
+    # --------------------------------------------------------------------------
     def insert_study(self, study):
         """
         Because study_uid is set as a unique primary key and IGNORE is used in the query,
@@ -197,6 +211,7 @@ class Database():
         VALUES ((SELECT patients.id FROM patients WHERE patients.patient_id=%s),
          %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
+
         study_record = (study.patientid,
                         study.attachment_count, len(list(study.get_series())), study.study_uid,
                         study.uuid, study.formatted_description, study.updated, study.study_date,
