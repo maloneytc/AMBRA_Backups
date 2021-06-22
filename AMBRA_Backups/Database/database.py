@@ -155,6 +155,7 @@ class Database():
         """
         Returns a datetime object of the last_update column of the backup_info table.
         """
+        # TODO: Raise exception if a namespace with the given name and type does not exist!
 
         get_update_query = """
             SELECT last_backup FROM backup_info WHERE namespace_name=%s and namespace_type=%s;
@@ -181,6 +182,27 @@ class Database():
             return None
         return result[0]
 
+
+    # --------------------------------------------------------------------------
+    def insert_patient(self, patient_id, patient_name):
+        """
+        Insert the patient into the database if it does not already exist.
+
+        Inputs:
+        -----------
+        patient_id:
+
+        patient_name
+        """
+        insert_patient_query = """
+        INSERT IGNORE INTO patients (patient_id, patient_name)
+        VALUES (%s, %s);
+        """
+        patient_record = [(patient_id, patient_name)]
+        with self.connection.cursor() as cursor:
+            cursor.executemany(insert_patient_query, patient_record)
+            self.connection.commit()
+
     # --------------------------------------------------------------------------
     def insert_study(self, study):
         """
@@ -192,35 +214,54 @@ class Database():
         study: Object of the AMBRA_Utils.Study class
             Object of the study class to be added to the database.
         """
-        insert_patient_query = """
-        INSERT IGNORE INTO patients (patient_id, patient_name)
-        VALUES (%s, %s);
-        """
-        patient_record = [(study.patientid, study.patient_name)]
-        with self.connection.cursor() as cursor:
-            cursor.executemany(insert_patient_query, patient_record)
-            self.connection.commit()
+        self.insert_patient(study.patientid, study.patient_name)
 
+        existing_id = self.get_study_by_uid(study.study_uid)
+        if existing_id is None:
+            insert_study_query = """
+            INSERT IGNORE INTO studies
+            (id_patient,
+            attachment_count, series_count, study_uid, uuid,
+            study_description, updated, study_date, created_date,
+            modality, phi_namespace, storage_namespace)
+            VALUES ((SELECT patients.id FROM patients WHERE patients.patient_id=%s),
+             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
 
-        insert_study_query = """
-        INSERT IGNORE INTO studies
-        (id_patient,
-        attachment_count, series_count, study_uid, uuid,
-        study_description, updated, study_date, created_date,
-        modality, phi_namespace, storage_namespace)
-        VALUES ((SELECT patients.id FROM patients WHERE patients.patient_id=%s),
-         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
+            study_record = (study.patientid,
+                            study.attachment_count, len(list(study.get_series())), study.study_uid,
+                            study.uuid, study.formatted_description, study.updated, study.study_date,
+                            study.created, study.modality, study.phi_namespace,
+                            study.storage_namespace)
 
-        study_record = (study.patientid,
-                        study.attachment_count, len(list(study.get_series())), study.study_uid,
-                        study.uuid, study.formatted_description, study.updated, study.study_date,
-                        study.created, study.modality, study.phi_namespace,
-                        study.storage_namespace)
+            with self.connection.cursor() as cursor:
+                cursor.execute(insert_study_query, study_record)
+                self.connection.commit()
+        else:
+            update_study_query = """
+            UPDATE studies SET
+            attachment_count = %s,
+            series_count = %s,
+            uuid = %s,
+            study_description = %s,
+            updated = %s,
+            study_date = %s,
+            created_date = %s,
+            phi_namespace = %s,
+            storage_namespace = %s
+            WHERE id = %s;
+            """
+            study_record = (study.attachment_count, len(list(study.get_series())),
+                            study.uuid, study.formatted_description,
+                            datetime.strptime(study.updated.split('.')[0], '%Y-%m-%d %H:%M:%S'),
+                            datetime.strptime(study.study_date, '%Y%m%d'),
+                            datetime.strptime(study.created.split('.')[0], '%Y-%m-%d %H:%M:%S'),
+                            study.phi_namespace,
+                            study.storage_namespace, existing_id)
 
-        with self.connection.cursor() as cursor:
-            cursor.execute(insert_study_query, study_record)
-            self.connection.commit()
+            with self.connection.cursor() as cursor:
+                cursor.execute(update_study_query, study_record)
+                self.connection.commit()
 
     # --------------------------------------------------------------------------
     def get_tag_value(self, tags, group_hex, element_hex):
