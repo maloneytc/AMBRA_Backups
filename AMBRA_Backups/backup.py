@@ -55,7 +55,7 @@ def backup_study(study, backup_path, convert=False, use_uid=False, force=False):
 
     if (not zip_file.exists()) or force:
         logging.info(f'\tBacking up {study.patient_name} to {zip_file}.')
-        study.download(zip_file)
+        study.download(zip_file, ignore_exists=True)
     else:
         logging.info(f'\tSkipping backup of {study.patient_name} {study.formatted_description}, zip file already exists.')
 
@@ -166,7 +166,7 @@ def update_database(database, namespace):
     if last_backup is None:
         studies = namespace.get_studies()
     else:
-        studies = namespace.get_studies_after(last_backup)
+        studies = namespace.get_studies_after(last_backup, updated=True)
     for study in studies:
         try:
             database.insert_study(study)
