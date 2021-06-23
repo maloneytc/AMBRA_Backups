@@ -248,7 +248,9 @@ class Database():
             study_date = %s,
             created_date = %s,
             phi_namespace = %s,
-            storage_namespace = %s
+            storage_namespace = %s,
+            is_downloaded = NULL,
+            download_date = NULL
             WHERE id = %s;
             """
             study_record = (study.attachment_count, len(list(study.get_series())),
