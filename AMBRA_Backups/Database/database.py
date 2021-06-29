@@ -126,6 +126,20 @@ class Database():
             connection.commit()
 
     # --------------------------------------------------------------------------
+    def run_select_query(self, query):
+        """
+        Runs an SQL SELECT query and return the results.
+        """
+        with self.connection.cursor(buffered=True) as cursor:
+            cursor.execute(query)
+            while True:
+                results = cursor.fetchmany(10)
+                if not results:
+                    break
+                for result in results:
+                    yield result
+                    
+    # --------------------------------------------------------------------------
     def insert_update_datetime(self, namespace_name, namespace_type, namespace_id, namespace_uuid, date_time):
         """
         Inserts the datetime into the last_backup column of the info table.
