@@ -151,7 +151,7 @@ CREATE TABLE `patients` (
   `id` int NOT NULL AUTO_INCREMENT,
   `patient_name` varchar(45) NOT NULL,
   `patient_id` varchar(45) NOT NULL,
-  `is_phantom` varchar(45) DEFAULT NULL,
+  `is_phantom` tinyint DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idpatients_UNIQUE` (`id`),
   UNIQUE KEY `patient_name_UNIQUE` (`patient_name`),
