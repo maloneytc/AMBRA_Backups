@@ -138,7 +138,16 @@ class Database():
                     break
                 for result in results:
                     yield result
-                    
+
+    # --------------------------------------------------------------------------
+    def run_insert_query(self, query, record):
+        """
+        Runs an SQL INSERT/UPDATE query.
+        """
+        with self.connection.cursor() as cursor:
+            cursor.execute(query, record)
+            self.connection.commit()
+
     # --------------------------------------------------------------------------
     def insert_update_datetime(self, namespace_name, namespace_type, namespace_id, namespace_uuid, date_time):
         """
