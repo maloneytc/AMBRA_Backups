@@ -215,7 +215,7 @@ class Database():
         -----------
         patient_id:
 
-        patient_name
+        patient_name:
         """
         insert_patient_query = """
         INSERT IGNORE INTO patients (patient_id, patient_name)
@@ -247,11 +247,11 @@ class Database():
             attachment_count, series_count, study_uid, uuid,
             study_description, updated, study_date, created_date,
             modality, phi_namespace, storage_namespace)
-            VALUES ((SELECT patients.id FROM patients WHERE patients.patient_id=%s),
+            VALUES ((SELECT patients.id FROM patients WHERE patients.patient_name=%s),
              %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
 
-            study_record = (study.patientid,
+            study_record = (study.patient_name,
                             study.attachment_count, len(list(study.get_series())), study.study_uid,
                             study.uuid, study.formatted_description, study.updated, study.study_date,
                             study.created, study.modality, study.phi_namespace,
