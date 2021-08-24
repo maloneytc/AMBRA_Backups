@@ -237,6 +237,25 @@ class Database():
         study: Object of the AMBRA_Utils.Study class
             Object of the study class to be added to the database.
         """
+
+        if study.updated[-3:] == '-07':
+            updated_string = study.updated[0:-3]
+        else:
+            updated_string = study.updated
+        try:
+            study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S.%f')
+        except ValueError:
+            study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S')
+        
+        if study.created[-3:] == '-07':
+            created_string = study.created[0:-3]
+        else:
+            created_string = study.created
+        try:
+            study_created = datetime.strptime(created_string, '%Y-%m-%d %H:%M:%S.%f')
+        except ValueError:
+            study_created = datetime.strptime(created_string, '%Y-%m-%d %H:%M:%S')
+
         self.insert_patient(study.patientid, study.patient_name)
 
         existing_id = self.get_study_by_uid(study.study_uid)
@@ -253,7 +272,7 @@ class Database():
 
             study_record = (study.patient_name,
                             study.attachment_count, len(list(study.get_series())), study.study_uid,
-                            study.uuid, study.formatted_description, study.updated, study.study_date,
+                            study.uuid, study.formatted_description, study_updated, study.study_date,
                             study.created, study.modality, study.phi_namespace,
                             study.storage_namespace)
 
@@ -278,9 +297,9 @@ class Database():
             """
             study_record = (study.attachment_count, len(list(study.get_series())),
                             study.uuid, study.formatted_description,
-                            datetime.strptime(study.updated.split('.')[0], '%Y-%m-%d %H:%M:%S'),
+                            study_updated,
                             datetime.strptime(study.study_date, '%Y%m%d'),
-                            datetime.strptime(study.created.split('.')[0], '%Y-%m-%d %H:%M:%S'),
+                            study_created,
                             study.phi_namespace,
                             study.storage_namespace, existing_id)
 
