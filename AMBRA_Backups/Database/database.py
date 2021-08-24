@@ -126,6 +126,20 @@ class Database():
             connection.commit()
 
     # --------------------------------------------------------------------------
+    def list_tables(self):
+        with self.connection.cursor(buffered=True) as cursor:
+            cursor.execute("SHOW TABLES;")
+            results = cursor.fetchmany()
+        return list(results)
+
+    # --------------------------------------------------------------------------
+    def describe_table(self, table_name):
+        with self.connection.cursor(buffered=True) as cursor:
+            cursor.execute("""DESCRIBE %s;""", (table_name, ))
+            results = cursor.fetchmany()
+        return list(results)
+
+    # --------------------------------------------------------------------------
     def run_select_query(self, query):
         """
         Runs an SQL SELECT query and return the results.
@@ -205,7 +219,6 @@ class Database():
             return None
         return result[0]
 
-
     # --------------------------------------------------------------------------
     def insert_patient(self, patient_id, patient_name):
         """
@@ -246,7 +259,7 @@ class Database():
             study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S.%f')
         except ValueError:
             study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S')
-        
+
         if study.created[-3:] == '-07':
             created_string = study.created[0:-3]
         else:
