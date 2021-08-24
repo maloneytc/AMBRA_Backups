@@ -135,7 +135,7 @@ class Database():
     # --------------------------------------------------------------------------
     def describe_table(self, table_name):
         with self.connection.cursor(buffered=True) as cursor:
-            cursor.execute("""DESCRIBE %s;""", (table_name, ))
+            cursor.execute(f"DESCRIBE {table_name};")
             results = cursor.fetchall()
         return list(results)
 
