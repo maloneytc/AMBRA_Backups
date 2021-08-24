@@ -129,14 +129,14 @@ class Database():
     def list_tables(self):
         with self.connection.cursor(buffered=True) as cursor:
             cursor.execute("SHOW TABLES;")
-            results = cursor.fetchmany()
+            results = cursor.fetch_all()
         return list(results)
 
     # --------------------------------------------------------------------------
     def describe_table(self, table_name):
         with self.connection.cursor(buffered=True) as cursor:
             cursor.execute("""DESCRIBE %s;""", (table_name, ))
-            results = cursor.fetchmany()
+            results = cursor.fetch_all()
         return list(results)
 
     # --------------------------------------------------------------------------
