@@ -163,6 +163,16 @@ class Database():
             self.connection.commit()
 
     # --------------------------------------------------------------------------
+    def insert_dict(self, dict, table):
+        """
+        Insert the dictionary into the specified table with keys being the column names.
+        """
+        query = f"INSERT INTO {table} ( " + ", ".join(dict.keys()) + ") " + \
+                "VALUES ( " + ", ".join(["%s" for this in dict.values()]) + " );"
+
+        self.run_insert_query(query, tuple(dict.values()))
+
+    # --------------------------------------------------------------------------
     def insert_update_datetime(self, namespace_name, namespace_type, namespace_id, namespace_uuid, date_time):
         """
         Inserts the datetime into the last_backup column of the info table.
