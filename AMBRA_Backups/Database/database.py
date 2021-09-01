@@ -218,9 +218,30 @@ class Database():
     # --------------------------------------------------------------------------
     def get_study_by_uid(self, uid):
         """
+        Returns the id from the studies table for the study that matches the
+        given uid.
 
+        Inputs:
+        ----------
+        uid: str
+            uid of the study to retrieve.
         """
         select_query = """SELECT id FROM studies WHERE studies.study_uid=%s"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(select_query, (uid, ))
+            result = cursor.fetchone()
+
+        if result is None:
+            return None
+        return result[0]
+
+    # --------------------------------------------------------------------------
+    def get_series_by_uid(self, uid):
+        """
+        Returns the id from the img_series table for the series that matches the
+        given uid
+        """
+        select_query = """SELECT id FROM img_series WHERE img_series.series_uid=%s"""
         with self.connection.cursor() as cursor:
             cursor.execute(select_query, (uid, ))
             result = cursor.fetchone()
@@ -493,6 +514,58 @@ class Database():
             result = cursor.fetchone()
             return result
 
+
+
+    # --------------------------------------------------------------------------
+    def add_raw_nifti(self, nifti_path, series_uid):
+        """
+        Inserts the nifti_path into the column raw_nifti for the img_series table_name
+        where series_uid matches the input paramter series_uid.
+
+        Inputs:
+        -----------
+        nifti_path: str or Path
+            Path to the nifti file.
+        series_uid: str
+            series_uid for the img_series belonging to the nifti file.
+        """
+        assert isinstance(series_uid, str)
+        insert_query = """UPDATE img_series SET raw_nifti=%s WHERE series_uid=%s"""
+        with self.connection.cursor() as cursor:
+            cursor.executemany(insert_query, [(str(nifti_path), series_uid)])
+            self.connection.commit()
+
+    # --------------------------------------------------------------------------
+    def add_niftis(self, nifti_dir):
+        """
+        Finds .nii and .nii.gz files in a given directory and assumes they contain the
+        series uid in the file name. If so, will add them to the raw_nifti
+        column of the img_series table in the database.
+
+        Inputs:
+        ----------
+        nifti_dir: Path or str
+            Path to the directory containing the nifti files.
+        """
+        # Add nifti files to img_series table
+        for nifti_file in nifti_dir.glob('*.nii*'):
+            nii_stem = nifti_file.stem
+            if nii_stem.endswith('.nii'):
+                nii_stem = nii_stem[0:-4]
+            series_uid = nii_stem.split('_')[-1]
+
+            #TODO: This is very basic check if uid was found, could be better
+            if len(series_uid) < 10:
+                series_uid = nii_stem.split('_')[-2]
+            if len(series_uid) < 10:
+                logging.warning(f'Could not find uid for {nifti_file}.')
+                continue
+
+            try:
+                self.add_raw_nifti(nifti_file, series_uid)
+            except:
+                logging.warning(f'Could not add {nifti_file} to database.')
+
     # --------------------------------------------------------------------------
     def add_nifti_paths(self, backup_path, nifti_directory, series):
         """
@@ -504,7 +577,7 @@ class Database():
         backup_path: str or Path
             Path to the backup directory.
         nifti_directory: str or Path
-            Path to the
+            Path to the directory containing the nifti files.
         series: Object of AMBRA_Utils.Series class.
 
         """
@@ -516,28 +589,50 @@ class Database():
         niftis = list(nifti_dir.glob(search_pattern))
         if len(niftis) == 1:
             nifti = niftis[0]
-            insert_query = """UPDATE img_series SET raw_nifti=%s WHERE series_uid=%s"""
-            with self.connection.cursor() as cursor:
-                cursor.executemany(insert_query, [(str(nifti.relative_to(backup_path)), series.series_uid)])
+            self.add_raw_nifti(nifti.relative_to(backup_path), series.series_uid)
+
         elif len(niftis) > 1:
             logging.warning(f"Multiple nifti files found matching the pattern {search_pattern}, no path added to database!")
         elif len(niftis) == 0:
             logging.warning(f"No nifti files found matching the pattern {search_pattern}, no path added to database!")
 
+        # bvals_search_pattern = f'{series.formatted_description}_*_{series_number}.bval'
+        # bvecs_search_pattern = f'{series.formatted_description}_*_{series_number}.bvec'
+        #
+        # bvals = list(nifti_dir.glob(bvals_search_pattern))
+        # if len(bvals) == 1:
+        #     bval = bvals[0]
+        #     insert_query = """UPDATE img_series SET bvals=%s WHERE series_uid=%s"""
+        #     with self.connection.cursor() as cursor:
+        #         cursor.executemany(insert_query, [(str(bval.relative_to(backup_path)), series.series_uid)])
+        #
+        # bvecs = list(nifti_dir.glob(bvecs_search_pattern))
+        # if len(bvecs) == 1:
+        #     bvec = bvecs[0]
+        #     insert_query = """UPDATE img_series SET bvecs=%s WHERE series_uid=%s"""
+        #     with self.connection.cursor() as cursor:
+        #         cursor.executemany(insert_query, [(str(bvec.relative_to(backup_path)), series.series_uid)])
 
-        bvals_search_pattern = f'{series.formatted_description}_*_{series_number}.bval'
-        bvecs_search_pattern = f'{series.formatted_description}_*_{series_number}.bvec'
+    # --------------------------------------------------------------------------
+    def get_id_series_name(self, series_description):
+        """
+        Returns the id from the series_name table where corresponding to the
+        mapping in the series_map table.
+        """
+        res = list(self.run_select_query(f"SELECT id_series_name FROM series_map WHERE series_description=LOWER('{series_description}');"))
+        if res == []:
+            return None
+        else:
+            return res[0][0]
 
-        bvals = list(nifti_dir.glob(bvals_search_pattern))
-        if len(bvals) == 1:
-            bval = bvals[0]
-            insert_query = """UPDATE img_series SET bvals=%s WHERE series_uid=%s"""
-            with self.connection.cursor() as cursor:
-                cursor.executemany(insert_query, [(str(bval.relative_to(backup_path)), series.series_uid)])
+    # --------------------------------------------------------------------------
+    def set_id_series_names(self):
+        """
+        """
+        null_id_series_names = self.run_select_query("SELECT id, series_description FROM img_series WHERE id_series_name is null;")
 
-        bvecs = list(nifti_dir.glob(bvecs_search_pattern))
-        if len(bvecs) == 1:
-            bvec = bvecs[0]
-            insert_query = """UPDATE img_series SET bvals=%s WHERE series_uid=%s"""
-            with self.connection.cursor() as cursor:
-                cursor.executemany(insert_query, [(str(bvec.relative_to(backup_path)), series.series_uid)])
+        for this_series in null_id_series_names:
+            id_img, series_desc = this_series
+            id_series_name = self.get_id_series_name(series_desc)
+            if id_series_name:
+                self.run_insert_query("UPDATE img_series SET id_series_name=%s WHERE id=%s", (id_series_name, id_img))
