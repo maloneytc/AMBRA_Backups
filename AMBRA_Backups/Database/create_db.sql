@@ -53,6 +53,8 @@ CREATE TABLE `series_map` (
   `id` int NOT NULL AUTO_INCREMENT,
   `series_name` varchar(255) DEFAULT NULL,
   `id_series_name` int DEFAULT NULL,
+  'series_description' varchar(255) DEFAULT NULL,
+  UNIQUE KEY `series_description_UNIQUE` (`series_description`),
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_map_id_series_name` FOREIGN KEY (`id_series_name`) REFERENCES `series_name` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -66,7 +68,7 @@ CREATE TABLE `studies` (
   `study_uid` varchar(255) NOT NULL,
   `uuid` varchar(255) NOT NULL,
   `study_description` varchar(255) DEFAULT NULL,
-  `id_series_name` int DEFAULT NULL,
+  `id_sequence_name` int DEFAULT NULL,
   `is_downloaded` tinyint DEFAULT NULL,
   `download_date` datetime DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
@@ -84,7 +86,7 @@ CREATE TABLE `studies` (
   `notes` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `study_uid_UNIQUE` (`study_uid`),
-  CONSTRAINT `fk_study_id_series_name` FOREIGN KEY (`id_series_name`) REFERENCES `series_name` (`id`)
+  CONSTRAINT `fk_study_id_sequence_name` FOREIGN KEY (`id_sequence_name`) REFERENCES `sequence_name` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
@@ -99,7 +101,7 @@ CREATE TABLE `img_series` (
   `protocol_name` varchar(255) DEFAULT NULL,
   `series_number` int DEFAULT NULL,
   `series_description` varchar(255) DEFAULT NULL,
-  `id_sequence_name` int DEFAULT NULL,
+  `id_series_name` int DEFAULT NULL,
   `TR` float DEFAULT NULL,
   `TE` float DEFAULT NULL,
   `recon_matrix_rows` int DEFAULT NULL,
@@ -130,9 +132,9 @@ CREATE TABLE `img_series` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `series_id_UNIQUE` (`id`),
   UNIQUE KEY `series_uid_UNIQUE` (`series_uid`),
-  KEY `id_sequence_idx` (`id_sequence`),
+  KEY `id_series_idx` (`id_series`),
   CONSTRAINT `fk_id_study` FOREIGN KEY (`id_study`) REFERENCES `studies` (`id`),
-  CONSTRAINT `fk_id_sequence_name` FOREIGN KEY (`id_sequence_name`) REFERENCES `sequence_name` (`id`)
+  CONSTRAINT `fk_id_series_name` FOREIGN KEY (`id_series_name`) REFERENCES `series_name` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
