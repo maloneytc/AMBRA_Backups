@@ -351,6 +351,8 @@ class Database():
                 cursor.execute(update_study_query, study_record)
                 self.connection.commit()
 
+        self.add_to_series_map(study.formatted_description)
+
     # --------------------------------------------------------------------------
     def get_tag_value(self, tags, group_hex, element_hex):
         values = [this['value'] for this in tags['tags'] if this['group'] == int(str(group_hex),16) and this['element'] == int(str(element_hex), 16)]
@@ -628,6 +630,7 @@ class Database():
     # --------------------------------------------------------------------------
     def set_id_series_names(self):
         """
+        Updates the id_series_name column of the img_series tables using the mapping in the series_map table.
         """
         null_id_series_names = self.run_select_query("SELECT id, series_description FROM img_series WHERE id_series_name is null;")
 
@@ -636,3 +639,12 @@ class Database():
             id_series_name = self.get_id_series_name(series_desc)
             if id_series_name:
                 self.run_insert_query("UPDATE img_series SET id_series_name=%s WHERE id=%s", (id_series_name, id_img))
+
+    # --------------------------------------------------------------------------
+    def add_to_series_map(self, series_description):
+        """
+        Inserts the series_description into the series_description column of the
+        series_map table. Duplicate entries are ignored.
+        """
+        query = "INSERT IGNORE INTO series_map (series_description) VALUES (LOWER(%s))"
+        self.run_insert_query(query, (series_description))
