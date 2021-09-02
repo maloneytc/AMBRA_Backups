@@ -110,7 +110,7 @@ CREATE TABLE `img_series` (
   `number_of_slices` int DEFAULT NULL,
   `number_of_temporal_positions` int DEFAULT NULL,
   `acquisition_number` int DEFAULT NULL,
-  `raw_nifti` varchar(255) DEFAULT NULL,
+  `raw_nifti` varchar(512) DEFAULT NULL,
   `number_of_dicoms` int DEFAULT NULL,
   `series_uid` varchar(255) NOT NULL,
   `software_version` varchar(255) DEFAULT NULL,
