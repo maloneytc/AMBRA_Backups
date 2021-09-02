@@ -163,7 +163,7 @@ DROP TABLE IF EXISTS `processing`;
 CREATE TABLE `processing` (
   `id` int NOT NULL AUTO_INCREMENT,
   `img_series_id` int DEFAULT NULL,
-  `file_path` varchar(255) DEFAULT NULL,
+  `file_path` varchar(512) DEFAULT NULL,
   `file_name` varchar(255) DEFAULT NULL,
   `description` varchar(255) DEFAULT NULL,
   `date_created` datetime DEFAULT NULL,
