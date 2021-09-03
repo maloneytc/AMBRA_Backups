@@ -6,6 +6,7 @@ from datetime import datetime
 from mysql.connector import connect, Error
 import configparser
 from string import Template
+import hashlib
 
 import pandas as pd
 
@@ -647,4 +648,13 @@ class Database():
         series_map table. Duplicate entries are ignored.
         """
         query = "INSERT IGNORE INTO series_map (series_description) VALUES (LOWER(%s))"
-        self.run_insert_query(query, (series_description))
+        self.run_insert_query(query, (series_description,))
+
+    # --------------------------------------------------------------------------
+    def add_image_to_processing(self, id_img_series, image_path):
+        """
+        """
+        pass
+        #image_path = Path(image_path); assert image_path.exists()
+        ## XXX:
+        # Need to hash image and insert into processing table
