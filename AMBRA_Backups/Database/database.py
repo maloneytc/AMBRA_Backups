@@ -340,10 +340,11 @@ class Database():
             download_date = NULL
             WHERE id = %s;
             """
+
             study_record = (study.attachment_count, len(list(study.get_series())),
                             study.uuid, study.formatted_description,
                             study_updated,
-                            datetime.strptime(study.study_date, '%Y%m%d'),
+                            study.study_date,
                             study_created,
                             study.phi_namespace,
                             study.storage_namespace, existing_id)
