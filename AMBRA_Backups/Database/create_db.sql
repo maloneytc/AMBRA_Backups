@@ -169,6 +169,8 @@ CREATE TABLE `processing` (
   `date_created` datetime DEFAULT NULL,
   `record_created` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `record_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `hash` varchar(255) DEFAULT NULL,
+  `image_preview_path` varchar(512) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
