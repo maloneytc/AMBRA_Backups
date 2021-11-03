@@ -175,5 +175,8 @@ def update_database(database, namespace):
                 database.insert_series(this_series)
         except NotFound:
             print(f'Could not find the study {study.patient_name}: {study.uuid}.')
-
+        except Exception as e:
+            print('Error inserting study into database.')
+            print(e)
+            
     database.insert_update_datetime(namespace.name, namespace.namespace_type, namespace.namespace_id, namespace.uuid, current_backup)
