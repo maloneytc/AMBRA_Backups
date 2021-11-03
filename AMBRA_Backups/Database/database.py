@@ -26,8 +26,17 @@ class Database():
             ~/.study_database
         """
         self.db_name = database
+        self.config_path = config_path
         self.connection = self.connect(self.db_name, config_path=config_path)
 
+    # --------------------------------------------------------------------------
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.connection.close()
+
+    # --------------------------------------------------------------------------
+    def reconnect(self):
+        self.connection.close()
+        self.connection = self.connect(self.db_name, config_path=self.config_path)
 
     # --------------------------------------------------------------------------
     @classmethod
@@ -68,7 +77,10 @@ class Database():
                 port = db_config['port'],
                 user = db_config['user_name'],
                 password = db_config['password'],
-                database = db_name
+                database = db_name,
+                #pool_size = 500
+                #buffered=True,
+                #consume_results=True
             )
         except Error as e:
             print(e)
@@ -117,7 +129,10 @@ class Database():
         db_template = Template(template_string)
         queries = db_template.substitute(db_name=db_name)
 
-        cls.create_db(db_name, config_path=config_path)
+        try:
+            cls.create_db(db_name, config_path=config_path)
+        except:
+            pass
 
         connection = cls.connect(db_name, config_path=config_path)
 
@@ -127,32 +142,40 @@ class Database():
             connection.commit()
 
     # --------------------------------------------------------------------------
-    def list_tables(self):
-        with self.connection.cursor(buffered=True) as cursor:
+    def list_tables(self, buffered=True):
+        with self.connection.cursor(buffered=buffered) as cursor:
             cursor.execute("SHOW TABLES;")
             results = cursor.fetchall()
         return list(results)
 
     # --------------------------------------------------------------------------
-    def describe_table(self, table_name):
-        with self.connection.cursor(buffered=True) as cursor:
+    def describe_table(self, table_name, buffered=True):
+        with self.connection.cursor(buffered=buffered) as cursor:
             cursor.execute(f"DESCRIBE {table_name};")
             results = cursor.fetchall()
         return list(results)
 
     # --------------------------------------------------------------------------
-    def run_select_query(self, query):
+    def run_select_query(self, query, buffered=True):
         """
         Runs an SQL SELECT query and return the results.
+
+        Do not set buffered to True is you expect a large result to be returned.
         """
-        with self.connection.cursor(buffered=True) as cursor:
+        # with self.connection.cursor(buffered=buffered) as cursor:
+        #     cursor.execute(query)
+        #     while True:
+        #         results = cursor.fetchmany(10)
+        #         if not results:
+        #             break
+        #         for result in results:
+        #             yield result
+        with self.connection.cursor(buffered=buffered) as cursor:
             cursor.execute(query)
-            while True:
-                results = cursor.fetchmany(10)
-                if not results:
-                    break
-                for result in results:
-                    yield result
+            results = cursor.fetchall()
+
+        self.connection.commit()
+        return list(results)
 
     # --------------------------------------------------------------------------
     def run_insert_query(self, query, record):
@@ -161,7 +184,8 @@ class Database():
         """
         with self.connection.cursor() as cursor:
             cursor.execute(query, record)
-            self.connection.commit()
+
+        self.connection.commit()
 
     # --------------------------------------------------------------------------
     def insert_dict(self, dict, table):
@@ -170,6 +194,17 @@ class Database():
         """
         query = f"INSERT INTO {table} ( " + ", ".join(dict.keys()) + ") " + \
                 "VALUES ( " + ", ".join(["%s" for this in dict.values()]) + " );"
+
+        self.run_insert_query(query, tuple(dict.values()))
+
+    # --------------------------------------------------------------------------
+    def update_dict(self, dict, table, id_column, id_value):
+        """
+        Update the dictionary into the specified table with keys being the column
+        names for the 'id_column' row with value 'id_value'.
+        """
+        set_string = ', '.join([str(this)+'=%s' for this in dict.keys()])
+        query = f"UPDATE {table} SET {set_string} WHERE {id_column}='{id_value}';"
 
         self.run_insert_query(query, tuple(dict.values()))
 
@@ -196,7 +231,8 @@ class Database():
         datetime_record = (namespace_name, namespace_type, namespace_id, namespace_uuid, date_time.strftime('%Y-%m-%d %H:%M:%S'),date_time.strftime('%Y-%m-%d %H:%M:%S'))
         with self.connection.cursor() as cursor:
             cursor.execute(insert_update_query, datetime_record)
-            self.connection.commit()
+
+        self.connection.commit()
 
     # --------------------------------------------------------------------------
     def get_last_backup(self, namespace_name, namespace_type):
@@ -269,7 +305,8 @@ class Database():
         patient_record = [(patient_id, patient_name)]
         with self.connection.cursor() as cursor:
             cursor.executemany(insert_patient_query, patient_record)
-            self.connection.commit()
+
+        self.connection.commit()
 
     # --------------------------------------------------------------------------
     def insert_study(self, study):
@@ -301,6 +338,30 @@ class Database():
         except ValueError:
             study_created = datetime.strptime(created_string, '%Y-%m-%d %H:%M:%S')
 
+        #print(f'Study date: {study.study_date}')
+        if study.study_date:
+            try:
+                study_date = datetime.strptime(study.study_date, '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                try:
+                    study_date = datetime.strptime(study.study_date, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    try:
+                        study_date = datetime.strptime(study.study_date, '%Y-%m-%d')
+                    except ValueError:
+                        try:
+                            study_date = datetime.strptime(study.study_date, '%Y%m%d')
+                        except ValueError:
+                            try:
+                                study_date = datetime.strptime(study.study_date, '%m/%d/%Y')
+                            except:
+                                try:
+                                    study_date = datetime.strptime(study.study_date, '%d/%m/%Y')
+                                except:
+                                    study_date = None
+        else:
+            study_date = None
+
         self.insert_patient(study.patientid, study.patient_name)
 
         existing_id = self.get_study_by_uid(study.study_uid)
@@ -317,7 +378,7 @@ class Database():
 
             study_record = (study.patient_name,
                             study.attachment_count, len(list(study.get_series())), study.study_uid,
-                            study.uuid, study.formatted_description, study_updated, study.study_date,
+                            study.uuid, study.formatted_description, study_updated, study_date,
                             study.created, study.modality, study.phi_namespace,
                             study.storage_namespace)
 
@@ -344,16 +405,17 @@ class Database():
             study_record = (study.attachment_count, len(list(study.get_series())),
                             study.uuid, study.formatted_description,
                             study_updated,
-                            study.study_date,
+                            study_date,
                             study_created,
                             study.phi_namespace,
                             study.storage_namespace, existing_id)
 
             with self.connection.cursor() as cursor:
                 cursor.execute(update_study_query, study_record)
-                self.connection.commit()
 
-        self.add_to_series_map(study.formatted_description)
+            self.connection.commit()
+
+        #self.add_to_sequence_map(study.formatted_description)
 
     # --------------------------------------------------------------------------
     def get_tag_value(self, tags, group_hex, element_hex):
@@ -439,7 +501,10 @@ class Database():
 
         with self.connection.cursor() as cursor:
             cursor.execute(insert_series_query, series_record)
-            self.connection.commit()
+
+        self.connection.commit()
+
+        self.add_to_series_map(series.formatted_description)
 
     # --------------------------------------------------------------------------
     def set_study_is_downloaded(self, study_uid, zip_path, nifti_dir, download_date):
@@ -460,7 +525,8 @@ class Database():
         with self.connection.cursor() as cursor:
             download_query = """UPDATE studies SET is_downloaded = TRUE, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
             cursor.execute(download_query, (str(zip_path), str(nifti_dir), download_date, study_uid))
-            self.connection.commit()
+
+        self.connection.commit()
 
     # --------------------------------------------------------------------------
     def study_download_date(self, study_uid):
@@ -537,7 +603,8 @@ class Database():
         insert_query = """UPDATE img_series SET raw_nifti=%s WHERE series_uid=%s"""
         with self.connection.cursor() as cursor:
             cursor.executemany(insert_query, [(str(nifti_path), series_uid)])
-            self.connection.commit()
+
+        self.connection.commit()
 
     # --------------------------------------------------------------------------
     def add_niftis(self, nifti_dir):
