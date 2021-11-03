@@ -51,13 +51,13 @@ CREATE TABLE `series_name` (
 DROP TABLE IF EXISTS `series_map`;
 CREATE TABLE `series_map` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `series_name` varchar(255) DEFAULT NULL,
+  `series_description` varchar(255) DEFAULT NULL,
   `id_series_name` int DEFAULT NULL,
-  'series_description' varchar(255) DEFAULT NULL,
-  UNIQUE KEY `series_description_UNIQUE` (`series_description`),
   PRIMARY KEY (`id`),
+  UNIQUE KEY `series_description_UNIQUE` (`series_description`),
+  KEY `fk_map_id_series_name` (`id_series_name`),
   CONSTRAINT `fk_map_id_series_name` FOREIGN KEY (`id_series_name`) REFERENCES `series_name` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB AUTO_INCREMENT=3435 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 DROP TABLE IF EXISTS `studies`;
@@ -130,7 +130,6 @@ CREATE TABLE `img_series` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `series_id_UNIQUE` (`id`),
   UNIQUE KEY `series_uid_UNIQUE` (`series_uid`),
-  KEY `id_series_idx` (`id_series`),
   CONSTRAINT `fk_id_study` FOREIGN KEY (`id_study`) REFERENCES `studies` (`id`),
   CONSTRAINT `fk_id_series_name` FOREIGN KEY (`id_series_name`) REFERENCES `series_name` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
