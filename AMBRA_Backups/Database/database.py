@@ -156,7 +156,7 @@ class Database():
         return list(results)
 
     # --------------------------------------------------------------------------
-    def run_select_query(self, query, buffered=True):
+    def run_select_query(self, query, column_names=False, buffered=True):
         """
         Runs an SQL SELECT query and return the results.
 
@@ -173,8 +173,13 @@ class Database():
         with self.connection.cursor(buffered=buffered) as cursor:
             cursor.execute(query)
             results = cursor.fetchall()
-
+            columns = cursor.description
+            
         self.connection.commit()
+        if column_names:
+            result_dicts = [{columns[index][0]:column for index, column in enumerate(value)} for value in results]
+            return result_dicts
+
         return list(results)
 
     # --------------------------------------------------------------------------
