@@ -84,6 +84,7 @@ CREATE TABLE `studies` (
   `record_created` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `record_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `notes` varchar(255) DEFAULT NULL,
+  `viewer_link` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `study_uid_UNIQUE` (`study_uid`),
   CONSTRAINT `fk_study_id_sequence_name` FOREIGN KEY (`id_sequence_name`) REFERENCES `sequence_name` (`id`)

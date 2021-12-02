@@ -174,7 +174,7 @@ class Database():
             cursor.execute(query)
             results = cursor.fetchall()
             columns = cursor.description
-            
+
         self.connection.commit()
         if column_names:
             result_dicts = [{columns[index][0]:column for index, column in enumerate(value)} for value in results]
@@ -376,16 +376,16 @@ class Database():
             (id_patient,
             attachment_count, series_count, study_uid, uuid,
             study_description, updated, study_date, created_date,
-            modality, phi_namespace, storage_namespace)
+            modality, phi_namespace, storage_namespace, viewer_link)
             VALUES ((SELECT patients.id FROM patients WHERE patients.patient_name=%s),
-             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
 
             study_record = (study.patient_name,
                             study.attachment_count, len(list(study.get_series())), study.study_uid,
                             study.uuid, study.formatted_description, study_updated, study_date,
                             study.created, study.modality, study.phi_namespace,
-                            study.storage_namespace)
+                            study.storage_namespace, study.viewer_link)
 
             with self.connection.cursor() as cursor:
                 cursor.execute(insert_study_query, study_record)
@@ -402,6 +402,7 @@ class Database():
             created_date = %s,
             phi_namespace = %s,
             storage_namespace = %s,
+            viewer_link = %s,
             is_downloaded = NULL,
             download_date = NULL
             WHERE id = %s;
@@ -413,7 +414,9 @@ class Database():
                             study_date,
                             study_created,
                             study.phi_namespace,
-                            study.storage_namespace, existing_id)
+                            study.storage_namespace,
+                            study.viewer_link,
+                            existing_id)
 
             with self.connection.cursor() as cursor:
                 cursor.execute(update_study_query, study_record)
