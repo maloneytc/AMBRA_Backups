@@ -156,7 +156,7 @@ class Database():
         return list(results)
 
     # --------------------------------------------------------------------------
-    def run_select_query(self, query, column_names=False, buffered=True):
+    def run_select_query(self, query, record=None, column_names=False, buffered=True):
         """
         Runs an SQL SELECT query and return the results.
 
@@ -171,7 +171,10 @@ class Database():
         #         for result in results:
         #             yield result
         with self.connection.cursor(buffered=buffered) as cursor:
-            cursor.execute(query)
+            if record:
+                cursor.execute(query, record)
+            else:
+                cursor.execute(query)
             results = cursor.fetchall()
             columns = cursor.description
 
@@ -698,7 +701,7 @@ class Database():
         Returns the id from the series_name table where corresponding to the
         mapping in the series_map table.
         """
-        res = list(self.run_select_query(f"SELECT id_series_name FROM series_map WHERE series_description=LOWER('{series_description}');"))
+        res = list(self.run_select_query(f"""SELECT id_series_name FROM series_map WHERE series_description=LOWER(%s);""", record=(series_description,)))
         if res == []:
             return None
         else:
