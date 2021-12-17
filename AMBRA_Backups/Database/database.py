@@ -328,15 +328,6 @@ class Database():
             Object of the study class to be added to the database.
         """
 
-        if study.updated[-3:] == '-07':
-            updated_string = study.updated[0:-3]
-        else:
-            updated_string = study.updated
-        try:
-            study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S.%f')
-        except ValueError:
-            study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S')
-
         if study.created[-3:] == '-07':
             created_string = study.created[0:-3]
         else:
@@ -345,6 +336,18 @@ class Database():
             study_created = datetime.strptime(created_string, '%Y-%m-%d %H:%M:%S.%f')
         except ValueError:
             study_created = datetime.strptime(created_string, '%Y-%m-%d %H:%M:%S')
+
+        if not study.updated:
+            study_updated = study_created
+        else:
+            if study.updated[-3:] == '-07':
+                updated_string = study.updated[0:-3]
+            else:
+                updated_string = study.updated
+            try:
+                study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S')
 
         #print(f'Study date: {study.study_date}')
         if study.study_date:
