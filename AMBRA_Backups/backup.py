@@ -153,13 +153,24 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
             backup_namespace(location, backup_path, min_date=min_date, convert=convert, use_uid=use_uid)
 
 # ------------------------------------------------------------------------------
-def update_database(database, namespace):
+def update_database(database, namespace, custom_fields=None, custom_funtions=None):
     """
     Inputs:
     -------
     database: Object of the Database class
 
     namespace: Object of the Namespace class or one of it's subclasses.
+
+    custom_fields: dict
+        The key should contain the name of the custom field in Ambra and the
+        value the name of the column in the database. This gets passed to the
+        same field in the database.insert_study() method.
+
+    custom_funtions: dict
+        The key should contain the name of the column in the database and
+        the value contains the function that will be run with the study
+        passed on the parameter. This gets passed to the same field in the
+        database.insert_study() method.
     """
     last_backup = database.get_last_backup(namespace.name, namespace.namespace_type)
     current_backup = datetime.now()
@@ -169,13 +180,13 @@ def update_database(database, namespace):
         studies = namespace.get_studies_after(last_backup, updated=True)
     for study in studies:
         try:
-            database.insert_study(study)
+            database.insert_study(study, custom_fields=custom_fields, custom_funtions=custom_funtions)
             series = study.get_series()
             for this_series in series:
                 database.insert_series(this_series)
         except NotFound:
             print(f'Could not find the study {study.patient_name}: {study.uuid}.')
-            
+
         except Exception as e:
             print('Error inserting study into database.')
             print(e)

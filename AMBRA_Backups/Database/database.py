@@ -317,7 +317,7 @@ class Database():
         self.connection.commit()
 
     # --------------------------------------------------------------------------
-    def insert_study(self, study):
+    def insert_study(self, study, custom_fields=None, custom_functions=None, redownload=True):
         """
         Because study_uid is set as a unique primary key and IGNORE is used in the query,
         if the study is already in the database nothing will happen.
@@ -326,6 +326,16 @@ class Database():
         -----------
         study: Object of the AMBRA_Utils.Study class
             Object of the study class to be added to the database.
+        custom_fields: dict
+            The key should contain the name of the custom field in Ambra and the
+            value the name of the column in the database.
+        custom_funtions: dict
+            The key should contain the name of the column in the database and
+            the value contains the function that will be run with the study
+            passed on the parameter.
+        redownload: bool
+            If true, then a study update will null the is_downloaded and download_date fields.
+            If false, then those fields will be left as is.
         """
 
         if study.created[-3:] == '-07':
@@ -373,31 +383,65 @@ class Database():
         else:
             study_date = None
 
+        cfields_values = []
+        cfields_dbcols = []
+        if custom_fields:
+            for custom_field in custom_fields.keys():
+                try:
+                    cfield_value = study.get_customfield_value(custom_field)
+
+                    cfields_values.append(cfield_value)
+                    cfields_dbcols.append(custom_fields[custom_field])
+                except:
+                    continue
+
+        if custom_functions:
+            for custom_dbcol in custom_functions.keys():
+                try:
+                    cfield_value = custom_functions[custom_dbcol](study)
+
+                    cfields_values.append(cfield_value)
+                    cfields_dbcols.append(custom_dbcol)
+                except:
+                    continue
+
+        def add_comma(this_list):
+            if len(this_list) > 0:
+                return ', '
+            return ''
+
+
         self.insert_patient(study.patientid, study.patient_name)
 
         existing_id = self.get_study_by_uid(study.study_uid)
         if existing_id is None:
-            insert_study_query = """
+            insert_study_query = f"""
             INSERT IGNORE INTO studies
             (id_patient,
             attachment_count, series_count, study_uid, uuid,
             study_description, updated, study_date, created_date,
-            modality, phi_namespace, storage_namespace, viewer_link)
+            modality, phi_namespace, storage_namespace, viewer_link {add_comma(cfields_dbcols) + ', '.join(cfields_dbcols)})
             VALUES ((SELECT patients.id FROM patients WHERE patients.patient_name=%s),
-             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s {len(cfields_values)*', %s'})
             """
 
             study_record = (study.patient_name,
                             study.attachment_count, len(list(study.get_series())), study.study_uid,
                             study.uuid, study.formatted_description, study_updated, study_date,
                             study.created, study.modality, study.phi_namespace,
-                            study.storage_namespace, study.viewer_link)
+                            study.storage_namespace, study.viewer_link) + tuple(cfields_values)
 
             with self.connection.cursor() as cursor:
                 cursor.execute(insert_study_query, study_record)
                 self.connection.commit()
         else:
-            update_study_query = """
+            def set_download(download):
+                if download:
+                    return ", is_downloaded = NULL, download_date = NULL"
+                else:
+                    return ""
+
+            update_study_query = f"""
             UPDATE studies SET
             attachment_count = %s,
             series_count = %s,
@@ -408,9 +452,8 @@ class Database():
             created_date = %s,
             phi_namespace = %s,
             storage_namespace = %s,
-            viewer_link = %s,
-            is_downloaded = NULL,
-            download_date = NULL
+            viewer_link = %s {set_download(redownload)}
+            {add_comma(cfields_dbcols) + ', '.join([this+" = %s" for this in cfields_dbcols])}
             WHERE id = %s;
             """
 
@@ -421,8 +464,7 @@ class Database():
                             study_created,
                             study.phi_namespace,
                             study.storage_namespace,
-                            study.viewer_link,
-                            existing_id)
+                            study.viewer_link) + tuple(cfields_values) + (existing_id, )
 
             with self.connection.cursor() as cursor:
                 cursor.execute(update_study_query, study_record)
