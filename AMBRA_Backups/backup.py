@@ -153,7 +153,7 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
             backup_namespace(location, backup_path, min_date=min_date, convert=convert, use_uid=use_uid)
 
 # ------------------------------------------------------------------------------
-def update_database(database, namespace, custom_fields=None, custom_funtions=None):
+def update_database(database, namespace, custom_fields=None, custom_functions=None):
     """
     Inputs:
     -------
@@ -180,7 +180,7 @@ def update_database(database, namespace, custom_fields=None, custom_funtions=Non
         studies = namespace.get_studies_after(last_backup, updated=True)
     for study in studies:
         try:
-            database.insert_study(study, custom_fields=custom_fields, custom_funtions=custom_funtions)
+            database.insert_study(study, custom_fields=custom_fields, custom_functions=custom_functions)
             series = study.get_series()
             for this_series in series:
                 database.insert_series(this_series)
