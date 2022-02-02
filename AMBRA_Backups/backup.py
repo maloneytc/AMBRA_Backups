@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 import pdb
 
+import mysql.connector.errors as mysql_errors
 from ambra_sdk.exceptions.storage import NotFound
 
 from AMBRA_Backups import utils
@@ -179,14 +180,16 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
     else:
         studies = namespace.get_studies_after(last_backup, updated=True)
     for study in studies:
+        print(study)
         try:
             database.insert_study(study, custom_fields=custom_fields, custom_functions=custom_functions)
             series = study.get_series()
             for this_series in series:
                 database.insert_series(this_series)
+        except mysql_errors.ProgrammingError as e:
+            raise Exception(e)
         except NotFound:
             print(f'Could not find the study {study.patient_name}: {study.uuid}.')
-
         except Exception as e:
             print('Error inserting study into database.')
             print(e)
