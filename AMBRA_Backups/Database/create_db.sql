@@ -136,6 +136,45 @@ CREATE TABLE `img_series` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+DROP TABLE IF EXISTS `nifti_data`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `nifti_data` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `file_path` varchar(512) DEFAULT NULL,
+  `json_path` varchar(512) DEFAULT NULL,
+  `Modality` varchar(12) DEFAULT NULL,
+  `Manufacturer` varchar(45) DEFAULT NULL,
+  `ManufacturersModelName` varchar(45) DEFAULT NULL,
+  `BodyPartExamined` varchar(45) DEFAULT NULL,
+  `PatientPosition` varchar(45) DEFAULT NULL,
+  `ProcedureStepDescription` varchar(255) DEFAULT NULL,
+  `SoftwareVersions` varchar(45) DEFAULT NULL,
+  `SeriesDescription` varchar(255) DEFAULT NULL,
+  `ProtocolName` varchar(255) DEFAULT NULL,
+  `ImageType` varchar(512) DEFAULT NULL,
+  `RawImage` tinyint(1) DEFAULT NULL,
+  `SeriesNumber` int DEFAULT NULL,
+  `AcquisitionTime` varchar(24) DEFAULT NULL,
+  `AcquisitionNumber` int DEFAULT NULL,
+  `ConversionSoftware` varchar(45) DEFAULT NULL,
+  `ConversionSoftwareVersion` varchar(45) DEFAULT NULL,
+  `id_img_series` int DEFAULT NULL,
+  `id_study` int DEFAULT NULL,
+  `xdim` int DEFAULT NULL,
+  `ydim` int DEFAULT NULL,
+  `zdim` int DEFAULT NULL,
+  `tdim` int DEFAULT NULL,
+  `md5_hash` varchar(256) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `file_path_UNIQUE` (`file_path`),
+  UNIQUE KEY `json_path_UNIQUE` (`json_path`),
+  KEY `fk_id_img_series_idx` (`id_img_series`),
+  KEY `fk_id_study_idx` (`id_study`),
+  CONSTRAINT `fk_id_img_series` FOREIGN KEY (`id_img_series`) REFERENCES `img_series` (`id`),
+  CONSTRAINT `fk_nii_data_id_study` FOREIGN KEY (`id_study`) REFERENCES `studies` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10539 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 DROP TABLE IF EXISTS `institutions`;
 CREATE TABLE `institutions` (
   `id` int NOT NULL AUTO_INCREMENT,
