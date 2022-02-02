@@ -6,6 +6,26 @@ import os
 import shutil
 import pandas as pd
 
+import hashlib
+
+
+# ------------------------------------------------------------------------------
+def hash_file(file_path):
+    """
+    Returns the md5 hash of the file at file_path.
+    """
+    file_path = Path(file_path)
+    if not file_path.is_file():
+        raise Exception('Only files can be hashed.')
+
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as fopen:
+        buf = fopen.read()
+        hasher.update(buf)
+
+    return hasher.hexdigest()
+
+
 # ------------------------------------------------------------------------------
 def extract(zip_file):
     """
