@@ -4,11 +4,15 @@ import logging
 import pdb
 from datetime import datetime
 from mysql.connector import connect, Error
+import mysql.connector.errors as mysql_errors
 import configparser
 from string import Template
 import hashlib
-
+import json
+import nibabel as nib
 import pandas as pd
+
+from AMBRA_Utils import Series
 
 ################################################################################
 class Database():
@@ -782,3 +786,145 @@ class Database():
         #image_path = Path(image_path); assert image_path.exists()
         ## XXX:
         # Need to hash image and insert into processing table
+
+    # ------------------------------------------------------------------------------
+    def hash_file(self, file_path):
+        """
+        Returns the md5 hash of the file at file_path.
+        """
+        file_path = Path(file_path)
+        if not file_path.is_file():
+            raise Exception('Only files can be hashed.')
+
+        hasher = hashlib.md5()
+        with open(file_path, 'rb') as fopen:
+            buf = fopen.read()
+            hasher.update(buf)
+
+        return hasher.hexdigest()
+
+    # ------------------------------------------------------------------------------
+    def add_nifti(self, nifti_path, json_path=None, id_img_series=None, id_study=None):
+        """
+        Adds the nifti file at nifti_path and information from the json file to the
+        database.  If id_img_series and/or id_study is entered then the row will be
+        linked to those databases using their foreign keys.
+
+        Raises mysql.connector.errors.DataError if the file is already in the database.
+        """
+        if not Path(nifti_path).exists():
+            raise Exception(f'The file at {nifti_path} does not exist!')
+
+        info = {'file_path':str(nifti_path)}
+        if json_path:
+            with open(json_path, 'r') as fopen:
+                data = json.load(fopen)
+            info['json_path'] = str(json_path)
+            info['Modality'] = data.get('Modality')
+            info['Manufacturer'] = data.get('Manufacturer')
+            info['ManufacturersModelName'] = data.get('ManufacturersModelName')
+            info['BodyPartExamined'] = data.get('BodyPartExamined')
+            info['PatientPosition'] = data.get('PatientPosition')
+            info['ProcedureStepDescription'] = data.get('ProcedureStepDescription')
+            info['SoftwareVersions'] = data.get('SoftwareVersions')
+            info['SeriesDescription'] = data.get('SeriesDescription')
+            info['ProtocolName'] = data.get('ProtocolName')
+
+            image_types = data.get('ImageType')
+            if isinstance(image_types, list):
+                info['ImageType'] = ';'.join(image_types)
+            else:
+                info['ImageType'] = str(image_types)
+
+            info['RawImage'] = data.get('RawImage')
+            info['SeriesNumber'] = data.get('SeriesNumber')
+            info['AcquisitionTime'] = data.get('AcquisitionTime')
+            info['AcquisitionNumber'] = data.get('AcquisitionNumber')
+            info['ConversionSoftware'] = data.get('ConversionSoftware')
+            info['ConversionSoftwareVersion'] = data.get('ConversionSoftwareVersion')
+
+        img = nib.load(nifti_path)
+        info['xdim'] = int(img.header['dim'][1])
+        info['ydim'] = int(img.header['dim'][2])
+        info['zdim'] = int(img.header['dim'][3])
+        info['tdim'] = int(img.header['dim'][4])
+
+        if id_img_series:
+            info['id_img_series'] = id_img_series
+        if id_study:
+            info['id_study'] = id_study
+
+        info['md5_hash'] = self.hash_file(nifti_path)
+
+        self.insert_dict(info, 'nifti_data')
+
+    # ------------------------------------------------------------------------------
+    def get_study_id(self, nifti_dir):
+        assert Path(nifti_dir).exists()
+        results = self.run_select_query("SELECT * FROM studies WHERE nifti_directory=%s", (str(nifti_dir),), column_names=True)
+        if len(results)!=1:
+            return None
+        return results[0]['id']
+
+    # ------------------------------------------------------------------------------
+    def get_img_series_id(self, nii_path, json_path):
+        """
+
+        """
+        nii_path = Path(nii_path)
+        assert nii_path.exists()
+        json_path = Path(json_path)
+        assert json_path.exists()
+
+        with open(json_path, 'r') as fopen:
+            json_data = json.load(fopen)
+        formatted_json_description = Series.Series.format_description(json_data['SeriesDescription'])
+        series_number = json_data['SeriesNumber']
+
+        nii_dir = nii_path.parent
+        assert nii_dir.exists()
+
+        result = self.run_select_query("""SELECT img_series.id from img_series
+                                INNER JOIN studies ON img_series.id_study = studies.id
+                                WHERE img_series.series_number = %s
+                                AND img_series.series_description = %s
+                                AND studies.nifti_directory = %s""", (series_number, formatted_json_description, str(nii_dir)))
+        if len(result) == 0:
+            return None
+        elif len(result) > 1:
+            raise Exception('Multiple images found!')
+        return result[0][0]
+
+    # ------------------------------------------------------------------------------
+    def add_nifti_dir(self, nifti_dir):
+        """
+        Loops over all *.nii.gz files in the directory and calls add_nifti.
+        """
+        id_study = self.get_study_id(nifti_dir)
+        for nifti_file in nifti_dir.glob('*.nii.gz'):
+            json_file = nifti_dir.joinpath(nifti_file.name.replace('.nii.gz', '.json'))
+            if not json_file.exists():
+                json_file = None
+                id_img_series = None
+            else:
+                try:
+                    id_img_series = self.get_img_series_id(nifti_file, json_file)
+                except:
+                    id_img_series = None
+
+            try:
+                self.add_nifti(nifti_file, json_file, id_img_series=id_img_series, id_study=id_study)
+            except mysql_errors.IntegrityError:
+                # Most likely thrown if row already exists.
+                continue
+
+    # ------------------------------------------------------------------------------
+    def add_niftis_in_study_dir(self, study_dir):
+        """
+        Searches the study backup directory for a directory named like *_nii and
+        calls add_nifti_dir.
+
+        """
+        study_name = study_dir.name
+        for nifti_dir in study_dir.glob('*_nii'):
+            self.add_nifti_dir(nifti_dir)
