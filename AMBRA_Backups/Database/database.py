@@ -69,28 +69,33 @@ class Database():
 
     # --------------------------------------------------------------------------
     @classmethod
-    def connect(cls, db_name=None, config_path=None):
+    def connect(cls, db_name=None, config_path=None, n_retries=5):
         """
         """
         config = cls.get_config(config_path=config_path)
         db_config = config['ambra_backup']
 
-        try:
-            connection = connect(
-                host = db_config['host'],
-                port = db_config['port'],
-                user = db_config['user_name'],
-                password = db_config['password'],
-                database = db_name,
-                #pool_size = 500
-                #buffered=True,
-                #consume_results=True
-            )
-        except Error as e:
-            print(e)
-            logging.error(e)
+        retry_num = 0
+        while retry_num < n_retries:
+            try:
+                connection = connect(
+                    host = db_config['host'],
+                    port = db_config['port'],
+                    user = db_config['user_name'],
+                    password = db_config['password'],
+                    database = db_name,
+                    #pool_size = 500
+                    #buffered=True,
+                    #consume_results=True
+                )
 
-        return connection
+                return connection
+            except mysql_errors.DatabaseError:
+                retry_num += 1
+                sleep(5)
+            except Exception as e:
+                logging.error(e)
+                raise e
 
     # --------------------------------------------------------------------------
     @classmethod
