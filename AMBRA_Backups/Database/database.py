@@ -430,7 +430,7 @@ class Database():
             (id_patient,
             attachment_count, series_count, study_uid, uuid,
             study_description, updated, study_date, created_date,
-            modality, phi_namespace, storage_namespace, viewer_link {add_comma(cfields_dbcols) + ', '.join(cfields_dbcols)})
+            modality, phi_namespace, storage_namespace, viewer_link, must_approve {add_comma(cfields_dbcols) + ', '.join(cfields_dbcols)})
             VALUES ((SELECT patients.id FROM patients WHERE patients.patient_name=%s),
              %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s {len(cfields_values)*', %s'})
             """
@@ -439,7 +439,7 @@ class Database():
                             study.attachment_count, len(list(study.get_series())), study.study_uid,
                             study.uuid, study.formatted_description, study_updated, study_date,
                             study.created, study.modality, study.phi_namespace,
-                            study.storage_namespace, study.viewer_link) + tuple(cfields_values)
+                            study.storage_namespace, study.viewer_link, study.must_approve) + tuple(cfields_values)
 
             with self.connection.cursor() as cursor:
                 cursor.execute(insert_study_query, study_record)
@@ -462,7 +462,8 @@ class Database():
             created_date = %s,
             phi_namespace = %s,
             storage_namespace = %s,
-            viewer_link = %s {set_download(redownload)}
+            viewer_link = %s {set_download(redownload)},
+            must_approve = %s
             {add_comma(cfields_dbcols) + ', '.join([this+" = %s" for this in cfields_dbcols])}
             WHERE id = %s;
             """
@@ -474,7 +475,8 @@ class Database():
                             study_created,
                             study.phi_namespace,
                             study.storage_namespace,
-                            study.viewer_link) + tuple(cfields_values) + (existing_id, )
+                            study.viewer_link,
+                            study.must_approve) + tuple(cfields_values) + (existing_id, )
 
             with self.connection.cursor() as cursor:
                 cursor.execute(update_study_query, study_record)
