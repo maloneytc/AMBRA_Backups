@@ -432,7 +432,7 @@ class Database():
             study_description, updated, study_date, created_date,
             modality, phi_namespace, storage_namespace, viewer_link, must_approve {add_comma(cfields_dbcols) + ', '.join(cfields_dbcols)})
             VALUES ((SELECT patients.id FROM patients WHERE patients.patient_name=%s),
-             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s {len(cfields_values)*', %s'})
+             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s {len(cfields_values)*', %s'})
             """
 
             study_record = (study.patient_name,
