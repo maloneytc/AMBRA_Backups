@@ -3,6 +3,7 @@ import configparser
 from pathlib import Path
 import logging
 from datetime import datetime
+from itertools import chain
 import pdb
 
 import mysql.connector.errors as mysql_errors
@@ -178,7 +179,10 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
     if last_backup is None:
         studies = namespace.get_studies()
     else:
-        studies = namespace.get_studies_after(last_backup, updated=True)
+        # This is a fix for an Ambra bug that is setting the study 'updated' field to null
+        # on newly inserted studies, should only need the method with 'updated=True'  - TCM 02/28/2022
+        studies = chain(namespace.get_studies_after(last_backup, updated=True),
+                        namespace.get_studies_after(last_backup, updated=False))
     for study in studies:
         print(study)
         try:
