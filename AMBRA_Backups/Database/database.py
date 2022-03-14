@@ -202,8 +202,10 @@ class Database():
         """
         with self.connection.cursor() as cursor:
             cursor.execute(query, record)
+            row_id = cursor.lastrowid
 
         self.connection.commit()
+        return row_id
 
     # --------------------------------------------------------------------------
     def insert_dict(self, dict, table):
@@ -213,7 +215,8 @@ class Database():
         query = f"INSERT INTO {table} ( " + ", ".join(dict.keys()) + ") " + \
                 "VALUES ( " + ", ".join(["%s" for this in dict.values()]) + " );"
 
-        self.run_insert_query(query, tuple(dict.values()))
+        row_id = self.run_insert_query(query, tuple(dict.values()))
+        return row_id
 
     # --------------------------------------------------------------------------
     def update_dict(self, dict, table, id_column, id_value):
@@ -224,7 +227,8 @@ class Database():
         set_string = ', '.join([str(this)+'=%s' for this in dict.keys()])
         query = f"UPDATE {table} SET {set_string} WHERE {id_column}='{id_value}';"
 
-        self.run_insert_query(query, tuple(dict.values()))
+        row_id = self.run_insert_query(query, tuple(dict.values()))
+        return row_id
 
     # --------------------------------------------------------------------------
     def insert_update_datetime(self, namespace_name, namespace_type, namespace_id, namespace_uuid, date_time):
