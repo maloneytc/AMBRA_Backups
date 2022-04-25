@@ -23,7 +23,7 @@ def get_zip_stem(study):
     return zip_stem
 
 # ------------------------------------------------------------------------------
-def backup_study(study, backup_path, convert=False, use_uid=False, force=False):
+def backup_study(study, backup_path, convert=False, use_uid=False, force=False, annotations=True):
     """
     Backup the given study to the backup_path.
 
@@ -42,6 +42,9 @@ def backup_study(study, backup_path, convert=False, use_uid=False, force=False):
 
     force: bool
         If True, will download the study regardless of whether a zip file currently exists.
+
+    annotations: bool
+        If True, will save annotations to annotations.json file in the study backup directorys.
     """
     if use_uid:
         uid_string = study.study_uid.replace('.', '_')
@@ -61,6 +64,11 @@ def backup_study(study, backup_path, convert=False, use_uid=False, force=False):
     else:
         logging.info(f'\tSkipping backup of {study.patient_name} {study.formatted_description}, zip file already exists.')
 
+    if annotations:
+        annotation_file = study_dir.joinpath('annotations.json')
+        study.export_annotations(annotation_file)
+
+    nifti_dir = None
     if convert:
         nifti_dir = study_dir.joinpath(f'{zip_stem}_nii')
         if (not nifti_dir.exists()) or force:
@@ -69,9 +77,8 @@ def backup_study(study, backup_path, convert=False, use_uid=False, force=False):
             except Exception as e:
                 logging.error(e)
 
-        return zip_file, nifti_dir
 
-    return zip_file, None
+    return zip_file, nifti_dir
 
 # ------------------------------------------------------------------------------
 def backup_namespace(namespace, backup_path, min_date=None, convert=False, use_uid=False):
