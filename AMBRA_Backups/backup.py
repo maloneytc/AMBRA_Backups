@@ -64,6 +64,7 @@ def backup_study(study, backup_path, convert=False, use_uid=False, force=False, 
     else:
         logging.info(f'\tSkipping backup of {study.patient_name} {study.formatted_description}, zip file already exists.')
 
+    annotation_file = None
     if annotations:
         annotation_file = study_dir.joinpath('annotations.json')
         study.export_annotations(annotation_file)
@@ -77,8 +78,9 @@ def backup_study(study, backup_path, convert=False, use_uid=False, force=False, 
             except Exception as e:
                 logging.error(e)
 
+    #TODO: Change to return a dictionary with these paths
+    return zip_file, nifti_dir, annotation_file
 
-    return zip_file, nifti_dir
 
 # ------------------------------------------------------------------------------
 def backup_namespace(namespace, backup_path, min_date=None, convert=False, use_uid=False):

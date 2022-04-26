@@ -627,7 +627,7 @@ class Database():
         Returns a list of study_uids from studies that have not been downloaded.
         """
         with self.connection.cursor(buffered=True) as cursor:
-            download_query = """SELECT studies.uuid, studies.study_uid, studies.phi_namespace, backup_info.namespace_name
+            download_query = """SELECT studies.uuid, studies.study_uid, studies.phi_namespace, backup_info.namespace_name, studies.id
                                 FROM studies INNER JOIN backup_info ON studies.phi_namespace = backup_info.namespace_id
                                 WHERE studies.is_downloaded IS NULL OR studies.is_downloaded=FALSE;"""
             #download_query = """SELECT studies.id
@@ -755,6 +755,86 @@ class Database():
         #     insert_query = """UPDATE img_series SET bvecs=%s WHERE series_uid=%s"""
         #     with self.connection.cursor() as cursor:
         #         cursor.executemany(insert_query, [(str(bvec.relative_to(backup_path)), series.series_uid)])
+
+
+    # --------------------------------------------------------------------------
+    def add_area_annotations(self, annotations_json, id_study):
+        """
+        Adds area annotations stored in the annotations_json file to the
+        area_annotations table in the database.
+        """
+        id_annot = self.add_annotations(annotations_json, id_study)
+
+        with open(annotations_json, 'r') as fopen:
+            annots = json.load(fopen)
+
+        for annot in annots:
+            annot_json = json.loads(annot.pop('json'))
+            stats = annot_json['stats']
+            if annot_json['type'] == 'Area':
+                annot_area_info = {
+                  'id_annotations': id_annot,
+                  'instance_uid': annot.get('instance_uid'),
+                  'stamp': annot.get('stamp'),
+                  'frame_number': int(annot.get('frame_number')),
+                  'user_name': annot.get('user_name'),
+                  'series_uid': annot.get('series_uid'),
+                  'user_id': annot.get('user_id'),
+                  'uuid': annot.get('uuid'),
+                  'type': annot_json.get('type'),
+                  'area': annot_json.get('area'),
+                  'color': int(annot_json.get('color')),
+                  'filled': bool(annot_json.get('filled')),
+                  'height': int(annot_json.get('height')),
+                  'width': int(annot_json.get('width')),
+                  'stats_count': int(stats.get('count')),
+                  'stats_max': float(stats.get('max')),
+                  'stats_min': float(stats.get('min')),
+                  'stats_mean': float(stats.get('mean')),
+                  'stats_stdev': float(stats.get('stdev')),
+                  'stats_sum': float(stats.get('sum')),
+                  'stats_pixelSpacing': float(stats.get('pixelSpacing')),
+                  'description': annot_json.get('description'),
+                  'instanceIndex': int(annot_json.get('instanceIndex')),
+                }
+                try:
+                    self.insert_dict(annot_area_info, 'area_annotations')
+                except mysql_errors.IntegrityError:
+                    res = self.run_select_query('SELECT id FROM area_annotations WHERE uuid = %s', (annot_area_info['uuid'],))
+                    if len(res) == 1:
+                        id_value = res[0][0]
+                        id_annot = self.update_dict(annot_area_info, 'area_annotations', 'id', id_value)
+                    else:
+                        raise Exception('Could not add annotation file.')
+
+                #XXX: This will fail if the annotation uuid is not unique -
+                # need to implement an update if it's already in the database
+
+    # --------------------------------------------------------------------------
+    def add_annotations(self, annotations_json, id_study):
+        """
+        Adds annotations stored in the annotations_json file to the annotations database.
+
+        Returns the id of the entry from the annotations table.
+        """
+        assert isinstance(id_study, int)
+        annot_info = {
+            'id_study': id_study,
+            'file_path': str(annotations_json)
+        }
+
+        try:
+            id_annot = self.insert_dict(annot_info, 'annotations')
+        except mysql_errors.IntegrityError:
+            # Most likely thrown if row already exists.
+            res = self.run_select_query('SELECT id FROM annotations WHERE file_path = %s', (str(annotations_json),))
+            if len(res) == 1:
+                id_value = res[0][0]
+                id_annot = self.update_dict(annot_info, 'annotations', 'id', id_value)
+            else:
+                raise Exception('Could not add annotation file.')
+
+        return id_annot
 
     # --------------------------------------------------------------------------
     def get_id_series_name(self, series_description):
