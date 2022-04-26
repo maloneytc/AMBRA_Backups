@@ -214,3 +214,13 @@ CREATE TABLE `processing` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `annotations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_study` int DEFAULT NULL,
+  `file_path` varchar(512) DEFAULT NULL,
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `file_path_UNIQUE` (`file_path`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
