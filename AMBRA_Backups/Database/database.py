@@ -656,8 +656,6 @@ class Database():
             result = cursor.fetchone()
             return result
 
-
-
     # --------------------------------------------------------------------------
     def add_raw_nifti(self, nifti_path, series_uid):
         """
@@ -756,12 +754,32 @@ class Database():
         #     with self.connection.cursor() as cursor:
         #         cursor.executemany(insert_query, [(str(bvec.relative_to(backup_path)), series.series_uid)])
 
+    # --------------------------------------------------------------------------
+    def to_float(self, value):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+        except TypeError:
+            return None
+
+    # --------------------------------------------------------------------------
+    def to_int(self, value):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+        except TypeError:
+            return None
 
     # --------------------------------------------------------------------------
     def add_area_annotations(self, annotations_json, id_study):
         """
         Adds area annotations stored in the annotations_json file to the
         area_annotations table in the database.
+
+        Annotation will be added to the annotations table through a call to
+        add_annotations regardless of whether it's an area annotation or not.
         """
         id_annot = self.add_annotations(annotations_json, id_study)
 
@@ -770,8 +788,8 @@ class Database():
 
         for annot in annots:
             annot_json = json.loads(annot.pop('json'))
-            stats = annot_json['stats']
             if annot_json['type'] == 'Area':
+                stats = annot_json['stats']
                 annot_area_info = {
                   'id_annotations': id_annot,
                   'instance_uid': annot.get('instance_uid'),
@@ -787,13 +805,13 @@ class Database():
                   'filled': bool(annot_json.get('filled')),
                   'height': int(annot_json.get('height')),
                   'width': int(annot_json.get('width')),
-                  'stats_count': int(stats.get('count')),
-                  'stats_max': float(stats.get('max')),
-                  'stats_min': float(stats.get('min')),
-                  'stats_mean': float(stats.get('mean')),
-                  'stats_stdev': float(stats.get('stdev')),
-                  'stats_sum': float(stats.get('sum')),
-                  'stats_pixelSpacing': float(stats.get('pixelSpacing')),
+                  'stats_count': self.to_int(stats.get('count')),
+                  'stats_max': self.to_float(stats.get('max')),
+                  'stats_min': self.to_float(stats.get('min')),
+                  'stats_mean': self.to_float(stats.get('mean')),
+                  'stats_stdev': self.to_float(stats.get('stdev')),
+                  'stats_sum': self.to_float(stats.get('sum')),
+                  'stats_pixelSpacing': self.to_float(stats.get('pixelSpacing')),
                   'description': annot_json.get('description'),
                   'instanceIndex': int(annot_json.get('instanceIndex')),
                 }
@@ -909,8 +927,12 @@ class Database():
 
         info = {'file_path':str(nifti_path)}
         if json_path:
-            with open(json_path, 'r') as fopen:
-                data = json.load(fopen)
+            try:
+                with open(json_path, 'r') as fopen:
+                    data = json.load(fopen)
+            except json.decoder.JSONDecodeError as e:
+                raise Exception(f"Error loading the json file {json_path}.")
+
             info['json_path'] = str(json_path)
             info['Modality'] = data.get('Modality')
             info['Manufacturer'] = data.get('Manufacturer')
