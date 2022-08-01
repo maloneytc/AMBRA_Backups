@@ -11,17 +11,63 @@ CREATE TABLE `backup_info` (
   UNIQUE KEY `id_namespace` (`namespace_name`, `namespace_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-DROP TABLE IF EXISTS `crf`;
-CREATE TABLE `crf` (
+DROP TABLE IF EXISTS `CRF`;
+CREATE TABLE `CRF` (
   `id` int NOT NULL AUTO_INCREMENT,
   `id_study` int DEFAULT NULL,
-  `record_created` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `record_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `crf_name` varchar(255) DEFAULT NULL,
-  `html_path` varchar(255) DEFAULT NULL,
-  `csv_path` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `path` varchar(255) DEFAULT NULL,
+  `file_type` varchar(255) DEFAULT NULL,
+  `signed_by` varchar(255) DEFAULT NULL,
+  `signed_date` timestamp NULL DEFAULT NULL,
+  `uploaded` timestamp NULL DEFAULT NULL,
+  `crf_id` varchar(45) DEFAULT NULL,
+  `version` varchar(45) DEFAULT NULL,
+  `phi_namespace` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `crf_id_UNIQUE` (`crf_id`),
+  UNIQUE KEY `path_UNIQUE` (`path`)
+) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS `CRF_Schema`;
+CREATE TABLE `CRF_Schema` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `version` varchar(45) DEFAULT NULL COMMENT 'Version of the CRF that this question belongs to.',
+  `crf_name` varchar(45) DEFAULT NULL COMMENT 'Name of the CRF that this question belongs to.',
+  `question_id` varchar(45) DEFAULT NULL COMMENT 'ID label of the question as it is displayed on the CRF.',
+  `question_text` varchar(255) DEFAULT NULL COMMENT 'Text of the question as it is displayed on the CRF.',
+  `question_sub_text` varchar(255) DEFAULT NULL,
+  `data_labels` varchar(255) DEFAULT NULL COMMENT 'Label of the data entry field describing data entry format or data choices.',
+  `re_pattern` varchar(128) DEFAULT NULL COMMENT 'Regular expression pattern used to verify the field value.',
+  `data_type` varchar(45) DEFAULT NULL COMMENT 'Type of the field value expressed as a python data type.',
+  `html_span_id` varchar(128) NOT NULL COMMENT 'ID field value of the html span element containing the CRF field value.',
+  `csv_column_id` varchar(128) DEFAULT NULL,
+  `variable_coding` varchar(255) DEFAULT NULL COMMENT 'Python expression to convert the field variable to a decoded variable. The expression should store the decoded value in a variable named ''decode''.',
+  `na_value` varchar(45) DEFAULT NULL COMMENT 'Value to use if field is not applicable.',
+  `dependencies` varchar(255) DEFAULT NULL COMMENT 'Required dependencies for this question to have a value.',
+  `notes` varchar(512) DEFAULT NULL COMMENT 'Any notes related to this question.',
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_question` (`version`,`crf_name`,`html_span_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7706 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS `CRF_Data`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `CRF_Data` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_crf` int DEFAULT NULL,
+  `id_schema` int DEFAULT NULL,
+  `value` varchar(255) DEFAULT NULL,
+  `decoded_value` varchar(255) DEFAULT NULL,
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_crf_schema` (`id_crf`,`id_schema`)
+) ENGINE=InnoDB AUTO_INCREMENT=13339 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 DROP TABLE IF EXISTS `sequence_name`;
 CREATE TABLE `sequence_name` (
