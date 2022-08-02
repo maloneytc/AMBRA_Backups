@@ -429,6 +429,10 @@ class Database():
 
         existing_id = self.get_study_by_uid(study.study_uid)
         if existing_id is None:
+
+            if study.patient_name is None or study.patient_name == '':
+                raise Exception("Error: Patient name is empty!")
+
             insert_study_query = f"""
             INSERT IGNORE INTO studies
             (id_patient,
@@ -1028,8 +1032,12 @@ class Database():
 
             try:
                 self.add_nifti(nifti_file, json_file, id_img_series=id_img_series, id_study=id_study)
-            except mysql_errors.IntegrityError:
+            except mysql_errors.IntegrityError as e:
                 # Most likely thrown if row already exists.
+                print(f'Could not add nifti: {nifti_file}', e)
+                continue
+            except:
+                print(f'Could not add nifti: {nifti_file}')
                 continue
 
     # ------------------------------------------------------------------------------
