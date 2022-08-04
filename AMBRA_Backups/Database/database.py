@@ -560,7 +560,7 @@ class Database():
         acq_matrix = self.get_tag_value(series_tags, '0018', '1310')
         pixel_bandwidth = self.get_tag_value(series_tags, '0018', '0095')
         pixel_spacing = self.get_tag_value(series_tags, '0028', '0030')
-        software_version = self.get_tag_value(series_tags, '0018', '1019')
+        software_version = self.get_tag_value(series_tags, '0018', '1020')
         mr_acq_type = self.get_tag_value(series_tags, '0018','0023')
         seq_name = self.get_tag_value(series_tags, '0018','0024')
 
