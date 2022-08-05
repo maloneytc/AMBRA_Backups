@@ -60,7 +60,11 @@ def backup_study(study, backup_path, convert=False, use_uid=False, force=False, 
 
     if (not zip_file.exists()) or force:
         logging.info(f'\tBacking up {study.patient_name} to {zip_file}.')
-        study.download(zip_file, ignore_exists=True)
+        try:
+            study.download(zip_file, ignore_exists=True)
+        except NotFound:
+            logging.error(f'\tData not found on Ambra for {study.patient_name} {study.formatted_description}.')
+            return None, None, None
     else:
         logging.info(f'\tSkipping backup of {study.patient_name} {study.formatted_description}, zip file already exists.')
 
