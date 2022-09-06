@@ -485,7 +485,10 @@ def backup_studies(database, studies):
         try:
             add_html_crfs(database, study)
         except Exception as exc:
-            raise exc
+            print(20 * '=')
+            print(study)
+            print(exc)
+            print(20 * '=')
 
 # ------------------------------------------------------------------------------
 def backup_location_reads(database_name, ambra_account_name, location_name):
