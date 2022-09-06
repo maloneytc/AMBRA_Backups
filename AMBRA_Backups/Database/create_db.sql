@@ -12,6 +12,8 @@ CREATE TABLE `backup_info` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DROP TABLE IF EXISTS `CRF`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `CRF` (
   `id` int NOT NULL AUTO_INCREMENT,
   `id_study` int DEFAULT NULL,
@@ -26,12 +28,16 @@ CREATE TABLE `CRF` (
   `crf_id` varchar(45) DEFAULT NULL,
   `version` varchar(45) DEFAULT NULL,
   `phi_namespace` varchar(45) DEFAULT NULL,
+  `data_added` tinyint(1) DEFAULT NULL,
+  `file_name` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `crf_id_UNIQUE` (`crf_id`),
   UNIQUE KEY `path_UNIQUE` (`path`)
-) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=865 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 DROP TABLE IF EXISTS `CRF_Schema`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `CRF_Schema` (
   `id` int NOT NULL AUTO_INCREMENT,
   `version` varchar(45) DEFAULT NULL COMMENT 'Version of the CRF that this question belongs to.',
@@ -52,7 +58,9 @@ CREATE TABLE `CRF_Schema` (
   `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_question` (`version`,`crf_name`,`html_span_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7706 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 
 DROP TABLE IF EXISTS `CRF_Data`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -61,13 +69,17 @@ CREATE TABLE `CRF_Data` (
   `id` int NOT NULL AUTO_INCREMENT,
   `id_crf` int DEFAULT NULL,
   `id_schema` int DEFAULT NULL,
-  `value` varchar(255) DEFAULT NULL,
+  `value` varchar(1024) DEFAULT NULL,
   `decoded_value` varchar(255) DEFAULT NULL,
   `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `html_class` varchar(45) DEFAULT NULL,
+  `html_style` varchar(45) DEFAULT NULL,
+  `html_span_id` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_crf_schema` (`id_crf`,`id_schema`)
-) ENGINE=InnoDB AUTO_INCREMENT=13339 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `crf_and_span_id` (`id_crf`,`html_span_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 DROP TABLE IF EXISTS `sequence_name`;
 CREATE TABLE `sequence_name` (
