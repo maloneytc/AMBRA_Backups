@@ -356,10 +356,17 @@ class Database():
             created_string = study.created[0:-3]
         else:
             created_string = study.created
+
+        if '+' in created_string:
+            created_string = created_string.split('+')[0]
+
         try:
             study_created = datetime.strptime(created_string, '%Y-%m-%d %H:%M:%S.%f')
         except ValueError:
-            study_created = datetime.strptime(created_string, '%Y-%m-%d %H:%M:%S')
+            try:
+                study_created = datetime.strptime(created_string, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                study_created = None
 
         if not study.updated:
             study_updated = study_created
@@ -371,7 +378,11 @@ class Database():
             try:
                 study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S.%f')
             except ValueError:
-                study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S')
+                try:
+                    study_updated = datetime.strptime(updated_string, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    study_updated = None
+
 
         #print(f'Study date: {study.study_date}')
         if study.study_date:
