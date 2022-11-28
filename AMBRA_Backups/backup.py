@@ -7,7 +7,7 @@ from itertools import chain
 import pdb
 
 import mysql.connector.errors as mysql_errors
-from ambra_sdk.exceptions.storage import NotFound
+from ambra_sdk.exceptions.storage import NotFound, ImageNotFound
 
 from AMBRA_Backups import utils
 from AMBRA_Utils import Api, utilities
@@ -168,7 +168,7 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
             backup_namespace(location, backup_path, min_date=min_date, convert=convert, use_uid=use_uid)
 
 # ------------------------------------------------------------------------------
-def update_database(database, namespace, custom_fields=None, custom_functions=None):
+def update_database(database, namespace, custom_fields=None, custom_functions=None, ignore_series_exception=False):
     """
     Inputs:
     -------
@@ -186,6 +186,9 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
         the value contains the function that will be run with the study
         passed on the parameter. This gets passed to the same field in the
         database.insert_study() method.
+
+    ignore_series_exception: bool
+        If True, a ImageNotFound error will be ignored. Otherwise an exception will be raised.
     """
     last_backup = database.get_last_backup(namespace.name, namespace.namespace_type)
     current_backup = datetime.now()
@@ -202,7 +205,13 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
             database.insert_study(study, custom_fields=custom_fields, custom_functions=custom_functions)
             series = study.get_series()
             for this_series in series:
-                database.insert_series(this_series)
+                try:
+                    database.insert_series(this_series)
+                except ImageNotFound:
+                    if ignore_series_exception:
+                        print(f'Could not find the series {this_series.series_uid}.')
+                    else:
+                        raise ImageNotFound
         except mysql_errors.ProgrammingError as e:
             raise Exception(e)
         except NotFound:
