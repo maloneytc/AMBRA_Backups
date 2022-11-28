@@ -506,6 +506,8 @@ class Database():
 
     # --------------------------------------------------------------------------
     def get_tag_value(self, tags, group_hex, element_hex):
+        if tags is None:
+            return None
         values = [this['value'] for this in tags['tags'] if this['group'] == int(str(group_hex),16) and this['element'] == int(str(element_hex), 16)]
         if len(values) == 0:
            return None
@@ -545,7 +547,10 @@ class Database():
         %s, %s)
         """
 
+        #try:
         series_tags = series.get_tags(0)
+        #except:
+        #    series_tags = None
 
         scanner_model = self.get_tag_value(series_tags, '0008', '1090')
         scanner_manufac = self.get_tag_value(series_tags, '0008', '0070')
