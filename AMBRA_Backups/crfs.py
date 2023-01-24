@@ -223,11 +223,15 @@ def extract_and_verify_crf_values(this_schema, soup):
         if encodings.startswith('decode'):
             # Python Variable Decoding
             template_string = Template(encodings)
-            to_eval = template_string.substitute(value=field_value)
-            decode = None
+            if isinstance(value, str):
+                to_eval = template_string.substitute(value=f"'{field_value}'")
+            else:
+                to_eval = template_string.substitute(value=field_value)
             try:
                 # decode variable will be set in the line below
-                exec(str(to_eval), globals())
+                locs={}
+                exec(str(to_eval), {}, locs)
+                decode = locs['decode']
             except Exception as exc:
                 raise DecodingError(question_id) from exc
             decoded_value = decode
