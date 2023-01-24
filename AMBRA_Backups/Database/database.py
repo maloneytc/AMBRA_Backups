@@ -210,7 +210,10 @@ class Database():
     # --------------------------------------------------------------------------
     def insert_dict(self, dict, table):
         """
-        Insert the dictionary into the specified table with keys being the column names.
+        Insert the dictionary into the specified table with keys being the
+        column names.
+
+        Returns the id of the inserted row.
         """
         query = f"INSERT INTO {table} ( " + ", ".join(dict.keys()) + ") " + \
                 "VALUES ( " + ", ".join(["%s" for this in dict.values()]) + " );"
