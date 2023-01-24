@@ -211,7 +211,7 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
                     if ignore_series_exception:
                         print(f'Could not find the series {this_series.series_uid}.')
                     else:
-                        raise ImageNotFound
+                        raise Exception(f'Could not find the series {this_series.series_uid}.')
         except mysql_errors.ProgrammingError as e:
             raise Exception(e)
         except NotFound:
