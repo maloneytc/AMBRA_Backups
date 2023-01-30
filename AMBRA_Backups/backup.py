@@ -7,7 +7,7 @@ from itertools import chain
 import pdb
 
 import mysql.connector.errors as mysql_errors
-from ambra_sdk.exceptions.storage import NotFound, ImageNotFound
+from ambra_sdk.exceptions.storage import NotFound, ImageNotFound, Unknown
 
 from AMBRA_Backups import utils
 from AMBRA_Utils import Api, utilities
@@ -208,6 +208,11 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
                 try:
                     database.insert_series(this_series)
                 except ImageNotFound:
+                    if ignore_series_exception:
+                        print(f'Could not find the series {this_series.series_uid}.')
+                    else:
+                        raise Exception(f'Could not find the series {this_series.series_uid}.')
+                except Unknown:
                     if ignore_series_exception:
                         print(f'Could not find the series {this_series.series_uid}.')
                     else:
