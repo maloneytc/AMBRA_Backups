@@ -168,7 +168,8 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
             backup_namespace(location, backup_path, min_date=min_date, convert=convert, use_uid=use_uid)
 
 # ------------------------------------------------------------------------------
-def update_database(database, namespace, custom_fields=None, custom_functions=None, ignore_series_exception=False):
+def update_database(database, namespace, custom_fields=None, custom_functions=None,
+                    ignore_series_exception=False, ignore_uploading=False):
     """
     Inputs:
     -------
@@ -189,6 +190,9 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
 
     ignore_series_exception: bool
         If True, a ImageNotFound error will be ignored. Otherwise an exception will be raised.
+
+    ignore_uploading: bool
+        If True, studies with patient_name == 'Study uploading' will be ignored.
     """
     last_backup = database.get_last_backup(namespace.name, namespace.namespace_type)
     current_backup = datetime.now()
@@ -201,6 +205,10 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
                         namespace.get_studies_after(last_backup, updated=False))
     for study in studies:
         print(study)
+        if ignore_uploading:
+            if study.patient_name == 'Study uploading':
+                print('\tSkipping addition of this study to the database.')
+                continue
         try:
             database.insert_study(study, custom_fields=custom_fields, custom_functions=custom_functions)
             series = study.get_series()
