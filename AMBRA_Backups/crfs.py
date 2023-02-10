@@ -253,12 +253,23 @@ def extract_and_verify_crf_values(this_schema, soup):
     return field_value, decoded_value
 
 # ------------------------------------------------------------------------------
-def extract_crf_values(soup):
+def extract_crf_values(soup, additional_fields=None):
     """
     Extract all values from the html span elements with an id field.
 
     Returns a list of dictionaries, one from each of the span elements.
     The dictionary keys are 'field_value', 'html_span_id', 'class', 'style'.
+
+    Inputs:
+    --------
+    soup: An object of the BeautifulSoup class.
+
+    additional_fields: list of dicts
+        A dictionary of additional fields to pull from the html.
+        Required fields in the dicts are 'html_span_id', 'tag', 'attrs'.
+        If html_span_id is None, then it will be taken from the id attribute of
+        the html element. If no html tag is found with mathcing tag and attributes,
+        no data will be extracted.
     """
     all_data = []
     for span in soup.find_all('span', attrs={'id':re.compile('.*')}):
@@ -280,9 +291,44 @@ def extract_crf_values(soup):
         attrs['html_style'] = attrs.pop('style')
 
         field_value = span.text
+        
+        # The code below will grab only text at the top level of the tag and
+        # will ignore text from child elements
+        #field_value = ''.join(span.find_all(text=True, recursive=False)).strip()
+
         attrs['value'] = field_value
 
         all_data.append(attrs)
+
+    if additional_fields is not None:
+        for add_field in additional_fields:
+            this_tag = soup.find(add_field['tag'], attrs=add_field['attrs'])
+            if not this_tag is None:
+                attrs = this_tag.attrs.copy()
+
+                if add_field['html_span_id'] is None:
+                    attrs['html_span_id'] = attrs.pop('id')
+                else:
+                    attrs['html_span_id'] = add_field['html_span_id']
+
+                html_class = attrs.get('class')
+                if not html_class:
+                    attrs['class'] = html_class
+                if isinstance(html_class, list):
+                    attrs['class'] = ';'.join(html_class)
+                attrs['html_class'] = attrs.pop('class')
+
+                html_style = attrs.get('style')
+                if not html_style:
+                    attrs['style'] = html_style
+                if isinstance(html_style, list):
+                    attrs['style'] = ';'.join(html_style)
+                attrs['html_style'] = attrs.pop('style')
+
+                field_value = this_tag.text
+                attrs['value'] = field_value
+
+                all_data.append(attrs)
 
     return all_data
 
@@ -353,9 +399,9 @@ def verify_all_spans_accounted(schema, soup):
         raise UnaccountedSpan(unaccounted_spans)
 
 # ------------------------------------------------------------------------------
-def add_html(database, attachment, id_study, crf_version=1.0):
+def add_html(database, attachment, id_study, crf_version=1.0, additional_fields=None):
     """
-    For html attachment, find schema and add to database.
+    For html attachment add to crf table and extract data into crf_data table.
     """
     assert attachment.filename.split('.')[-1] == 'html'
 
@@ -426,24 +472,9 @@ def add_html(database, attachment, id_study, crf_version=1.0):
         id_crf = get_id_crf(database, id_study, crf_id)
 
     if not data_added:
-        ## With a schema
-        ## --------------
-        # schema = get_schema(database, crf_title, crf_version)
-        #
-        # for this_schema in schema:
-        #     id_schema = this_schema['id']
-        #     field_value, decoded_value = extract_and_verify_crf_values(this_schema, soup)
-        #
-        #     database.insert_dict({'id_crf': id_crf,
-        #                     'id_schema': id_schema,
-        #                     'value': field_value,
-        #                     'decoded_value': decoded_value}, 'CRF_Data')
-        #
-        # verify_all_spans_accounted(schema, soup)
-
         ## Schema-less
         ## ------------
-        all_data = extract_crf_values(soup)
+        all_data = extract_crf_values(soup, additional_fields=additional_fields)
 
         for this_data in all_data:
             this_data['id_crf'] = id_crf
@@ -462,7 +493,7 @@ def add_html(database, attachment, id_study, crf_version=1.0):
     set_data_added(database, id_study, crf_id, value=True)
 
 # ------------------------------------------------------------------------------
-def add_html_crfs(database, study):
+def add_html_crfs(database, study, additional_fields=None):
     """
     Find html CRFs in the given study and add to the database.
     """
@@ -473,7 +504,7 @@ def add_html_crfs(database, study):
         for attachment in attachments:
             if attachment.filename.split('.')[-1] == 'html':
                 try:
-                    add_html(database, attachment, id_study)
+                    add_html(database, attachment, id_study, additional_fields=additional_fields)
                 except GetContentError as gce:
                     print(f'Could not get content from attachment {attachment.filename} \
                             from study with uid: {study.study_uid}.', gce)
@@ -481,13 +512,13 @@ def add_html_crfs(database, study):
                     raise exc
 
 # ------------------------------------------------------------------------------
-def backup_studies(database, studies):
+def backup_studies(database, studies, additional_html_fields=None):
     """
     Backup all studies in the given 'studies' list.
     """
     for study in studies:
         try:
-            add_html_crfs(database, study)
+            add_html_crfs(database, study, additional_fields=additional_html_fields)
         except Exception as exc:
             print(20 * '=')
             print(study)
