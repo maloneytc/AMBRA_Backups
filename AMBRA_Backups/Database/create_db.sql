@@ -30,10 +30,11 @@ CREATE TABLE `CRF` (
   `phi_namespace` varchar(45) DEFAULT NULL,
   `data_added` tinyint(1) DEFAULT NULL,
   `file_name` varchar(45) DEFAULT NULL,
+  `verified` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `crf_id_UNIQUE` (`crf_id`),
   UNIQUE KEY `path_UNIQUE` (`path`)
-) ENGINE=InnoDB AUTO_INCREMENT=865 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1127 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 DROP TABLE IF EXISTS `CRF_Schema`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -126,7 +127,7 @@ CREATE TABLE `studies` (
   `study_uid` varchar(255) NOT NULL,
   `uuid` varchar(255) NOT NULL,
   `study_description` varchar(255) DEFAULT NULL,
-  `id_sequence_name` int DEFAULT NULL,
+  `id_series_name` int DEFAULT NULL,
   `is_downloaded` tinyint DEFAULT NULL,
   `download_date` datetime DEFAULT NULL,
   `updated` datetime DEFAULT NULL,
@@ -139,15 +140,17 @@ CREATE TABLE `studies` (
   `id_patient` int DEFAULT NULL,
   `phi_namespace` varchar(255) DEFAULT NULL,
   `storage_namespace` varchar(255) DEFAULT NULL,
-  `record_created` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `record_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `notes` varchar(255) DEFAULT NULL,
   `viewer_link` varchar(255) DEFAULT NULL,
-  `must_approve` TINYINT(1) DEFAULT NULL,
+  `copied_to_process` tinyint(1) DEFAULT NULL,
+  `must_approve` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `study_uid_UNIQUE` (`study_uid`),
-  CONSTRAINT `fk_study_id_sequence_name` FOREIGN KEY (`id_sequence_name`) REFERENCES `sequence_name` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  KEY `fk_study_id_series_name` (`id_series_name`),
+  CONSTRAINT `fk_study_id_series_name` FOREIGN KEY (`id_series_name`) REFERENCES `series_name` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=455 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 DROP TABLE IF EXISTS `img_series`;
@@ -161,7 +164,7 @@ CREATE TABLE `img_series` (
   `protocol_name` varchar(255) DEFAULT NULL,
   `series_number` int DEFAULT NULL,
   `series_description` varchar(255) DEFAULT NULL,
-  `id_series_name` int DEFAULT NULL,
+  `id_sequence_name` int DEFAULT NULL,
   `TR` float DEFAULT NULL,
   `TE` float DEFAULT NULL,
   `recon_matrix_rows` int DEFAULT NULL,
@@ -170,7 +173,9 @@ CREATE TABLE `img_series` (
   `number_of_slices` int DEFAULT NULL,
   `number_of_temporal_positions` int DEFAULT NULL,
   `acquisition_number` int DEFAULT NULL,
-  `raw_nifti` varchar(512) DEFAULT NULL,
+  `processed_directory` varchar(255) DEFAULT NULL,
+  `id_sequence` int DEFAULT NULL,
+  `raw_nifti` varchar(255) DEFAULT NULL,
   `number_of_dicoms` int DEFAULT NULL,
   `series_uid` varchar(255) NOT NULL,
   `software_version` varchar(255) DEFAULT NULL,
@@ -184,15 +189,18 @@ CREATE TABLE `img_series` (
   `mr_acq_type` varchar(255) DEFAULT NULL,
   `sequence_name` varchar(255) DEFAULT NULL,
   `id_patient` int DEFAULT NULL,
-  `record_created` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `record_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `notes` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `series_id_UNIQUE` (`id`),
   UNIQUE KEY `series_uid_UNIQUE` (`series_uid`),
-  CONSTRAINT `fk_id_study` FOREIGN KEY (`id_study`) REFERENCES `studies` (`id`),
-  CONSTRAINT `fk_id_series_name` FOREIGN KEY (`id_series_name`) REFERENCES `series_name` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  KEY `id_sequence_idx` (`id_sequence`),
+  KEY `fk_id_study` (`id_study`),
+  KEY `fk_id_sequence_name` (`id_sequence_name`),
+  CONSTRAINT `fk_id_sequence_name` FOREIGN KEY (`id_sequence_name`) REFERENCES `sequence_name` (`id`),
+  CONSTRAINT `fk_id_study` FOREIGN KEY (`id_study`) REFERENCES `studies` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=34034 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 DROP TABLE IF EXISTS `nifti_data`;
@@ -250,6 +258,7 @@ CREATE TABLE `patients` (
   `patient_name` varchar(45) NOT NULL,
   `patient_id` varchar(45) NOT NULL,
   `is_phantom` tinyint DEFAULT NULL,
+  `comments` varchar(120) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idpatients_UNIQUE` (`id`),
   UNIQUE KEY `patient_name_UNIQUE` (`patient_name`),
@@ -273,6 +282,7 @@ CREATE TABLE `processing` (
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+DROP TABLE IF EXISTS `annotations`;
 CREATE TABLE `annotations` (
   `id` int NOT NULL AUTO_INCREMENT,
   `id_study` int DEFAULT NULL,
@@ -282,3 +292,17 @@ CREATE TABLE `annotations` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `file_path_UNIQUE` (`file_path`)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS `segmentations`;
+CREATE TABLE `segmentations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_img_series` int DEFAULT NULL,
+  `roi_path` varchar(1024) DEFAULT NULL,
+  `description` varchar(256) DEFAULT NULL,
+  `notes` varchar(255) DEFAULT NULL,
+  `record_created` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`),
+  CONSTRAINT `id_id_img_series` FOREIGN KEY (`id`) REFERENCES `img_series` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
