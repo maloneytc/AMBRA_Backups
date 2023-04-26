@@ -205,6 +205,7 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
                         namespace.get_studies_after(last_backup, updated=False))
     for study in studies:
         print(study)
+        print(study.study_uid)
         if ignore_uploading:
             if study.patient_name == 'Study uploading':
                 print('\tSkipping addition of this study to the database.')
