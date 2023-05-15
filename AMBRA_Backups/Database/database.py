@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 import pdb
 from datetime import datetime
-from mysql.connector import connect, Error
+from mysql.connector import connect, Error, FieldType
 import mysql.connector.errors as mysql_errors
 import configparser
 from string import Template
@@ -166,11 +166,12 @@ class Database():
         return list(results)
 
     # --------------------------------------------------------------------------
-    def run_select_query(self, query, record=None, column_names=False, buffered=True):
+    def run_select_query(self, query, record=None, column_names=False, buffered=True, field_types=False):
         """
         Runs an SQL SELECT query and return the results.
 
-        Do not set buffered to True is you expect a large result to be returned.
+        Do not set buffered to True if you expect a large result to be returned.
+
         """
         # with self.connection.cursor(buffered=buffered) as cursor:
         #     cursor.execute(query)
@@ -189,10 +190,17 @@ class Database():
             columns = cursor.description
 
         self.connection.commit()
+
+        field_types = {this[0]:FieldType.get_info(this[1]) for this in columns}
+
         if column_names:
             result_dicts = [{columns[index][0]:column for index, column in enumerate(value)} for value in results]
+            if field_types:
+                return result_dicts, field_types
             return result_dicts
-
+        
+        if field_types:
+            return list(results), field_types
         return list(results)
 
     # --------------------------------------------------------------------------
