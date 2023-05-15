@@ -169,7 +169,7 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
 
 # ------------------------------------------------------------------------------
 def update_database(database, namespace, custom_fields=None, custom_functions=None,
-                    ignore_series_exception=False, ignore_uploading=False):
+                    ignore_series_exception=False, ignore_uploading=False, ignore_study_exception=False):
     """
     Inputs:
     -------
@@ -190,6 +190,9 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
 
     ignore_series_exception: bool
         If True, a ImageNotFound error will be ignored. Otherwise an exception will be raised.
+
+    ignore_study_exception: bool
+        If True, errors related to study retrieval from Ambra will be ignored. Otherwise an exception will be raised.
 
     ignore_uploading: bool
         If True, studies with patient_name == 'Study uploading' will be ignored.
@@ -229,8 +232,14 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
         except mysql_errors.ProgrammingError as e:
             raise Exception(e)
         except NotFound:
-            print(f'Could not find the study {study.patient_name}: {study.uuid}.')
+            if ignore_study_exception:
+                print(f'Error: Could not find the study {study.patient_name}: {study.uuid}.')
+            else:
+                raise(f'Error: Could not find the study {study.patient_name}: {study.uuid}.')
         except Exception as e:
-            raise(f'Error inserting study into database: {e}')
+            if ignore_study_exception:
+                print(f'Error inserting study into database: {e}')
+            else:
+                raise(Exception(f'Error inserting study into database: {e}'))
 
     database.insert_update_datetime(namespace.name, namespace.namespace_type, namespace.namespace_id, namespace.uuid, current_backup)
