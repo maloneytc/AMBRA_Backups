@@ -11,6 +11,18 @@ CREATE TABLE `backup_info` (
   UNIQUE KEY `id_namespace` (`namespace_name`, `namespace_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+DROP TABLE IF EXISTS `reports`;
+CREATE TABLE `reports` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `report_name` VARCHAR(45) NULL,
+  `last_run` DATETIME NULL,
+  `report_type` VARCHAR(45) NULL,
+  `webhook_url` VARCHAR(256) NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `report_name_UNIQUE` (`report_name` ASC) VISIBLE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;;
+
+
 DROP TABLE IF EXISTS `CRF`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
