@@ -191,16 +191,16 @@ class Database():
 
         self.connection.commit()
 
-        field_types = {this[0]:FieldType.get_info(this[1]) for this in columns}
+        these_field_types = {this[0]:FieldType.get_info(this[1]) for this in columns}
 
         if column_names:
             result_dicts = [{columns[index][0]:column for index, column in enumerate(value)} for value in results]
             if field_types:
-                return result_dicts, field_types
+                return result_dicts, these_field_types   
             return result_dicts
         
         if field_types:
-            return list(results), field_types
+            return list(results), these_field_types
         return list(results)
 
     # --------------------------------------------------------------------------
