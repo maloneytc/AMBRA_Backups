@@ -1,3 +1,4 @@
+from sys import platform
 from pathlib import Path
 import zipfile
 import logging
@@ -51,7 +52,11 @@ def convert_nifti(dicom_directory, output_directory):
     Passes the dicom_directory to dcm2niix and outputs the nifti, bids and other
     files to the output_directory path.
     """
-    dcm2nii_path = Path(__file__).parent.parent.joinpath("ExternalPrograms","dcm2niix")
+    if platform == "linux" or platform == "linux2":
+        dcm2nii_path = Path(__file__).parent.parent.joinpath("ExternalPrograms","dcm2niix_linux")
+    elif platform == "darwin":
+        dcm2nii_path = Path(__file__).parent.parent.joinpath("ExternalPrograms","dcm2niix")
+        
     if not dcm2nii_path.exists():
         raise Exception(f'Could not locate dcm2nii at {dcm2nii_path}')
 
