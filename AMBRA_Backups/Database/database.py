@@ -627,9 +627,16 @@ class Database():
         is_downloaded: bool
             The value to set is_downloaded in the database. Default: True
         """
+        if zip_path is not None:
+            zip_path = str(zip_path)
+        if nifti_dir is not None:
+            nifti_dir = str(nifti_dir)
+        if is_downloaded is not None:
+            is_downloaded = bool(is_downloaded)
+
         with self.connection.cursor() as cursor:
             download_query = """UPDATE studies SET is_downloaded = %s, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
-            cursor.execute(download_query, (bool(is_downloaded), str(zip_path), str(nifti_dir), download_date, study_uid))
+            cursor.execute(download_query, (is_downloaded, zip_path, nifti_dir, download_date, study_uid))
 
         self.connection.commit()
 
