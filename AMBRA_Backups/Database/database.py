@@ -610,7 +610,7 @@ class Database():
         self.add_to_series_map(series.formatted_description)
 
     # --------------------------------------------------------------------------
-    def set_study_is_downloaded(self, study_uid, zip_path, nifti_dir, download_date):
+    def set_study_is_downloaded(self, study_uid, zip_path, nifti_dir, download_date, is_downloaded=True):
         """
         Use paths relative to the backup directory.
 
@@ -624,10 +624,12 @@ class Database():
             Path to the directory containing the study nifti files.
         download_date: datetime Object
             Date and time the study was downloaded.
+        is_downloaded: bool
+            The value to set is_downloaded in the database. Default: True
         """
         with self.connection.cursor() as cursor:
-            download_query = """UPDATE studies SET is_downloaded = TRUE, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
-            cursor.execute(download_query, (str(zip_path), str(nifti_dir), download_date, study_uid))
+            download_query = """UPDATE studies SET is_downloaded = %s, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
+            cursor.execute(download_query, (bool(is_downloaded), str(zip_path), str(nifti_dir), download_date, study_uid))
 
         self.connection.commit()
 
