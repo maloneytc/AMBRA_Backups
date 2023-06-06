@@ -169,7 +169,8 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
 
 # ------------------------------------------------------------------------------
 def update_database(database, namespace, custom_fields=None, custom_functions=None,
-                    ignore_series_exception=False, ignore_uploading=False, ignore_study_exception=False):
+                    ignore_series_exception=False, ignore_uploading=False, ignore_study_exception=False,
+                    ignore_must_approve=False):
     """
     Inputs:
     -------
@@ -196,6 +197,9 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
 
     ignore_uploading: bool
         If True, studies with patient_name == 'Study uploading' will be ignored.
+
+    ignore_must_approve: bool
+        If True, studies with must_approve=1 (i.e. in the activities queue) will not be backed up.
     """
     last_backup = database.get_last_backup(namespace.name, namespace.namespace_type)
     current_backup = datetime.now()
@@ -211,7 +215,11 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
         print(study.study_uid)
         if ignore_uploading:
             if study.patient_name == 'Study uploading':
-                print('\tSkipping addition of this study to the database.')
+                print('\tStudy Uploading: Skipping addition of this study to the database.')
+                continue
+        if ignore_must_approve:
+            if study.must_approve == 1:
+                print('\tNeeds approval: Skipping addition of this study to the database.')
                 continue
         try:
             database.insert_study(study, custom_fields=custom_fields, custom_functions=custom_functions)
