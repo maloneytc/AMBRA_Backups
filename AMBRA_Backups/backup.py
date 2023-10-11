@@ -169,7 +169,7 @@ def backup_account(account_name, backup_path, min_date=None, groups=True, locati
 
 # ------------------------------------------------------------------------------
 def update_database(database, namespace, custom_fields=None, custom_functions=None,
-                    ignore_series_exception=False, ignore_uploading=False, ignore_study_exception=False,
+                    ignore_series_exception=False, ignore_uploading=True, ignore_study_exception=False,
                     ignore_must_approve=False):
     """
     Inputs:
