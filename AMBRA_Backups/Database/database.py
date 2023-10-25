@@ -515,6 +515,27 @@ class Database():
 
         #self.add_to_sequence_map(study.formatted_description)
 
+        # Add study tags
+        id_study = self.get_study_by_uid(study.study_uid)
+      
+        if id_study is not None:
+            for tag in study.get_study_tags()['tags']:
+                group, element = tag['tag'].strip('(').strip(')').split(',')
+                value = tag['value']
+                max_tag_value_length = 512
+                if len(value) > max_tag_value_length:
+                    value = value[0:512]
+                tag_query = """INSERT INTO study_tags (id_study, tag_group, tag_element, tag_value) 
+                            VALUES (%s, %s, %s, %s)
+                            ON DUPLICATE KEY UPDATE
+                            tag_value = %s"""
+                tag_record = (id_study, group, element, value, value)
+
+                with self.connection.cursor() as cursor:
+                    cursor.execute(tag_query, tag_record)
+
+            self.connection.commit()
+
     # --------------------------------------------------------------------------
     def get_tag_value(self, tags, group_hex, element_hex):
         if tags is None:
