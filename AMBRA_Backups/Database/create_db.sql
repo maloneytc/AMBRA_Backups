@@ -318,3 +318,17 @@ CREATE TABLE `segmentations` (
   UNIQUE KEY `id_UNIQUE` (`id`),
   CONSTRAINT `id_id_img_series` FOREIGN KEY (`id`) REFERENCES `img_series` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS `study_tags`;
+CREATE TABLE `study_tags` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_study` int DEFAULT NULL,
+  `tag_group` varchar(4) DEFAULT NULL,
+  `tag_element` varchar(4) DEFAULT NULL,
+  `tag_value` varchar(512) DEFAULT NULL,
+  `record_created` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `study_tags_id_study_unq` (`id_study`,`tag_group`,`tag_element`),
+  KEY `fk_study_tags_1_idx` (`id_study`)
+) ENGINE=InnoDB AUTO_INCREMENT=12973 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
