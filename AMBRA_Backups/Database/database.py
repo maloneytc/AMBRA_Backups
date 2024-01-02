@@ -262,7 +262,7 @@ class Database():
         VALUES (%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE last_backup=%s;
         """
         datetime_record = (namespace_name, namespace_type, namespace_id, namespace_uuid, date_time.strftime('%Y-%m-%d %H:%M:%S'),date_time.strftime('%Y-%m-%d %H:%M:%S'))
-        with self.connection.cursor() as cursor:
+        with self.connection.cursor(buffered=True) as cursor:
             cursor.execute(insert_update_query, datetime_record)
 
         self.connection.commit()
@@ -286,7 +286,7 @@ class Database():
         return result[0]
 
     # --------------------------------------------------------------------------
-    def get_study_by_uid(self, uid):
+    def get_study_by_uid(self, uid, storage_ns=None):
         """
         Returns the id from the studies table for the study that matches the
         given uid.
@@ -295,11 +295,19 @@ class Database():
         ----------
         uid: str
             uid of the study to retrieve.
+        storage_ns: str, None
+            If not None, will return study mathcing uid and storage namespace ID.
         """
         select_query = """SELECT id FROM studies WHERE studies.study_uid=%s"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(select_query, (uid, ))
-            result = cursor.fetchone()
+        if storage_ns is not None:
+            select_query += """ AND storage_namespace=%s"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(select_query, (uid, storage_ns))
+                result = cursor.fetchone()
+        else:
+            with self.connection.cursor() as cursor:
+                cursor.execute(select_query, (uid, ))
+                result = cursor.fetchone()
 
         if result is None:
             return None
@@ -342,7 +350,7 @@ class Database():
         self.connection.commit()
 
     # --------------------------------------------------------------------------
-    def insert_study(self, study, custom_fields=None, custom_functions=None, redownload=True):
+    def insert_study(self, study, custom_fields=None, custom_functions=None, redownload=True, ignore_existing=False):
         """
         Because study_uid is set as a unique primary key and IGNORE is used in the query,
         if the study is already in the database nothing will happen.
@@ -450,7 +458,7 @@ class Database():
         self.insert_patient(study.patientid, study.patient_name)
 
         existing_id = self.get_study_by_uid(study.study_uid)
-        if existing_id is None:
+        if ( existing_id is None ) or ignore_existing:
 
             if study.patient_name is None or study.patient_name == '':
                 raise Exception("Error: Patient name is empty!")
@@ -516,7 +524,7 @@ class Database():
         #self.add_to_sequence_map(study.formatted_description)
 
         # Add study tags
-        id_study = self.get_study_by_uid(study.study_uid)
+        id_study = self.get_study_by_uid(study.study_uid, storage_ns=study.storage_namespace)
       
         if id_study is not None:
             for tag in study.get_study_tags()['tags']:
