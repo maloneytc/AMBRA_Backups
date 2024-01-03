@@ -92,7 +92,7 @@ class Database():
                     password = db_config['password'],
                     database = db_name,
                     #pool_size = 500
-                    #buffered=True,
+                    buffered=True,
                     #consume_results=True
                 )
 
