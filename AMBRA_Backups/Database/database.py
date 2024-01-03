@@ -34,6 +34,12 @@ class Database():
         self.config_path = config_path
         self.connection = self.connect(self.db_name, config_path=config_path)
 
+
+    # --------------------------------------------------------------------------
+    def close(self):
+        self.connection.commit()
+        self.connection.close()
+
     # --------------------------------------------------------------------------
     def __exit__(self, exc_type, exc_value, traceback):
         self.connection.close()
