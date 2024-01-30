@@ -493,7 +493,7 @@ def add_html(database, attachment, id_study, crf_version=1.0, additional_fields=
     set_data_added(database, id_study, crf_id, value=True)
 
 # ------------------------------------------------------------------------------
-def add_html_crfs(database, study, additional_fields=None):
+def add_html_crfs(database, study, additional_fields=None, ignore_errors=False):
     """
     Find html CRFs in the given study and add to the database.
     """
@@ -509,6 +509,8 @@ def add_html_crfs(database, study, additional_fields=None):
                     print(f'Could not get content from attachment {attachment.filename} \
                             from study with uid: {study.study_uid}.', gce)
                 except Exception as exc:
+                    if ignore_errors:
+                        continue
                     raise exc
 
 # ------------------------------------------------------------------------------
