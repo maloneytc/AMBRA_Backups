@@ -411,25 +411,61 @@ class Database():
 
         #print(f'Study date: {study.study_date}')
         if study.study_date:
+            # If time not in study date add it in through the study_time parameter.
+            this_study_date = study.study_date
+            if len(this_study_date) <= 10:
+                this_study_date = f'{study.study_date} {study.study_time}'
+
+            if '-' in this_study_date:
+                date_format = '%Y-%m-%d'
+            elif '/' in this_study_date:
+                date_format = '%m/%d/%Y'
+            else:
+                date_format = '%Y%m%d'
+
+            if ':' in this_study_date:
+                time_format = '%H:%M:%S'
+            else:
+                time_format = '%H%M%S'
+
+            if '.' in this_study_date:
+                time_format += '.%f'
+
+            datetime_format = f'{date_format} {time_format}'
+
             try:
-                study_date = datetime.strptime(study.study_date, '%Y-%m-%d %H:%M:%S.%f')
+                study_date = datetime.strptime(this_study_date, datetime_format)
             except ValueError:
-                try:
-                    study_date = datetime.strptime(study.study_date, '%Y-%m-%d %H:%M:%S')
-                except ValueError:
-                    try:
-                        study_date = datetime.strptime(study.study_date, '%Y-%m-%d')
-                    except ValueError:
-                        try:
-                            study_date = datetime.strptime(study.study_date, '%Y%m%d')
-                        except ValueError:
-                            try:
-                                study_date = datetime.strptime(study.study_date, '%m/%d/%Y')
-                            except:
-                                try:
-                                    study_date = datetime.strptime(study.study_date, '%d/%m/%Y')
-                                except:
-                                    study_date = None
+                study_date = None
+
+            # try:
+            #     study_date = datetime.strptime(study.study_date, '%Y-%m-%d %H:%M:%S.%f')
+            # except ValueError:
+            #     try:
+            #         study_date = datetime.strptime(study.study_date, '%Y-%m-%d %H:%M:%S')
+            #     except ValueError:
+                    
+                    
+
+            #         try:
+            #             try:
+            #                 study_date = datetime.strptime(f'{this_study_date} {this_study_time}', '%Y%m%d %H%M%S.%f')
+            #             except ValueError:
+            #                 study_date = datetime.strptime(f'{this_study_date} {this_study_time}', '%Y%m%d %H%M%S')
+            #         except:
+            #             try:
+            #                 study_date = datetime.strptime(study.study_date, '%Y-%m-%d')
+            #             except ValueError:
+            #                 try:
+            #                     study_date = datetime.strptime(study.study_date, '%Y%m%d')
+            #                 except ValueError:
+            #                     try:
+            #                         study_date = datetime.strptime(study.study_date, '%m/%d/%Y')
+            #                     except:
+            #                         try:
+            #                             study_date = datetime.strptime(study.study_date, '%d/%m/%Y')
+            #                         except:
+            #                             study_date = None
         else:
             study_date = None
 
