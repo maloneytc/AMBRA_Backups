@@ -158,6 +158,7 @@ CREATE TABLE `studies` (
   `viewer_link` varchar(255) DEFAULT NULL,
   `copied_to_process` tinyint(1) DEFAULT NULL,
   `must_approve` tinyint(1) DEFAULT NULL,
+  `deleted` tinyint(1) DEFAULT '0' COMMENT 'Binary value indicating whether the study has been deleted from Ambra.',
   PRIMARY KEY (`id`),
   UNIQUE KEY `study_uid_UNIQUE` (`study_uid`),
   KEY `fk_study_id_series_name` (`id_series_name`),
