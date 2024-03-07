@@ -413,8 +413,6 @@ class Database():
         if study.study_date:
             # If time not in study date add it in through the study_time parameter.
             this_study_date = study.study_date
-            if len(this_study_date) <= 10:
-                this_study_date = f'{study.study_date} {study.study_time}'
 
             if '-' in this_study_date:
                 date_format = '%Y-%m-%d'
@@ -423,15 +421,21 @@ class Database():
             else:
                 date_format = '%Y%m%d'
 
-            if ':' in this_study_date:
-                time_format = '%H:%M:%S'
+            if study.study_time is None:
+                datetime_format = date_format
             else:
-                time_format = '%H%M%S'
+                if len(this_study_date) <= 10:
+                    this_study_date = f'{study.study_date} {study.study_time}'
 
-            if '.' in this_study_date:
-                time_format += '.%f'
+                if ':' in this_study_date:
+                    time_format = '%H:%M:%S'
+                else:
+                    time_format = '%H%M%S'
 
-            datetime_format = f'{date_format} {time_format}'
+                if '.' in this_study_date:
+                    time_format += '.%f'
+
+                datetime_format = f'{date_format} {time_format}'
 
             try:
                 study_date = datetime.strptime(this_study_date, datetime_format)
