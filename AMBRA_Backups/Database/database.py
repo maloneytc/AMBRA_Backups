@@ -302,7 +302,7 @@ class Database():
         uid: str
             uid of the study to retrieve.
         storage_ns: str, None
-            If not None, will return study mathcing uid and storage namespace ID.
+            If not None, will return study matching uid and storage namespace ID.
         """
         select_query = """SELECT id FROM studies WHERE studies.study_uid=%s"""
         if storage_ns is not None:
@@ -318,6 +318,35 @@ class Database():
         if result is None:
             return None
         return result[0]
+    
+    # --------------------------------------------------------------------------
+    def get_study_by_uuid(self, uuid, storage_ns=None):
+        """
+        Returns the id from the studies table for the study that matches the
+        given uuid.
+
+        Inputs:
+        ----------
+        uid: str
+            uuid of the study to retrieve.
+        storage_ns: str, None
+            If not None, will return study matching uuid and storage namespace ID.
+        """
+        select_query = """SELECT id FROM studies WHERE studies.uuid=%s"""
+        if storage_ns is not None:
+            select_query += """ AND storage_namespace=%s"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(select_query, (uuid, storage_ns))
+                result = cursor.fetchone()
+        else:
+            with self.connection.cursor() as cursor:
+                cursor.execute(select_query, (uuid, ))
+                result = cursor.fetchone()
+
+        if result is None:
+            return None
+        return result[0]
+
 
     # --------------------------------------------------------------------------
     def get_series_by_uid(self, uid):
@@ -685,7 +714,7 @@ class Database():
         self.add_to_series_map(series.formatted_description)
 
     # --------------------------------------------------------------------------
-    def set_study_is_downloaded(self, study_uid, zip_path, nifti_dir, download_date, is_downloaded=True):
+    def set_study_is_downloaded(self, study_uid, zip_path, nifti_dir, download_date, is_downloaded=True, uuid=None):
         """
         Use paths relative to the backup directory.
 
@@ -701,6 +730,8 @@ class Database():
             Date and time the study was downloaded.
         is_downloaded: bool
             The value to set is_downloaded in the database. Default: True
+        uuid: str
+            If the uuid is not None, then this will also be used in the SQL query to identify the study.
         """
         if zip_path is not None:
             zip_path = str(zip_path)
@@ -710,8 +741,12 @@ class Database():
             is_downloaded = bool(is_downloaded)
 
         with self.connection.cursor() as cursor:
-            download_query = """UPDATE studies SET is_downloaded = %s, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s;"""
-            cursor.execute(download_query, (is_downloaded, zip_path, nifti_dir, download_date, study_uid))
+            download_query = """UPDATE studies SET is_downloaded = %s, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s"""
+            records = (is_downloaded, zip_path, nifti_dir, download_date, study_uid)
+            if uuid is not None:
+                download_query += """ AND uuid=%s"""
+                records = (is_downloaded, zip_path, nifti_dir, download_date, study_uid, uuid)
+            cursor.execute(download_query, records)
 
         self.connection.commit()
 
