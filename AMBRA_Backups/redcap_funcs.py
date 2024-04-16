@@ -9,12 +9,6 @@ from bs4 import BeautifulSoup
 from redcap import Project
 import configparser
 import sys
-config = configparser.ConfigParser()
-config.read(Path.home().joinpath('.ambra_loc'))
-sys.path.insert(0, config['AMBRA_Backups']['Path'])
-sys.path.insert(0, config['AMBRA_Utils']['Path'])
-import AMBRA_Backups
-import AMBRA_Utils
 
 
 
@@ -208,6 +202,14 @@ def project_data_to_db(db, project):
 
 
 if __name__ == '__main__':
+
+    
+    config = configparser.ConfigParser()
+    config.read(Path.home().joinpath('.ambra_loc'))
+    sys.path.insert(0, config['AMBRA_Backups']['Path'])
+    sys.path.insert(0, config['AMBRA_Utils']['Path'])
+    import AMBRA_Backups
+    import AMBRA_Utils
 
 
     testing = 0
