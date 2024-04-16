@@ -200,7 +200,7 @@ def project_data_to_db(db, project):
     return failed_to_add
 
 
-
+# using main for testing purposes, manual backups
 if __name__ == '__main__':
 
     
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     import AMBRA_Utils
 
 
-    testing = 0
+    testing = 1
     if testing:
         project = get_redcap_project('14102 Khandwala-Radiology Imaging Services Core Lab Workflow')
         db = AMBRA_Backups.database.Database('CAPTIVA_Test')
