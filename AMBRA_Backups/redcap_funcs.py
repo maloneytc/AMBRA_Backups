@@ -53,6 +53,9 @@ def get_form_var_dict(project):
 
 def get_record_logs(project, start, end):
     """
+    project - redcap project instance
+    start - start date from when to pull logs
+    end - end date from when to stop pulling logs
     Returns logs that create/upate records at specific interval.
     In chronological order
     """
@@ -103,6 +106,9 @@ def redcap_form_count(project):
 
 def backup_from(db, project, start):
     """
+    db - AMBRA_Backups.database.Database instance
+    project - redcap project instance
+    start - start date from when to pull logs to current date
     Manually backs up db by setting the last successful backup time in backup_info_RedCap, then running export
     """
 
@@ -116,14 +122,15 @@ def backup_from(db, project, start):
 
 
 
-def details_to_dict(s):
+def details_to_dict(log_details):
     """
+    log_details - string of details from redcap log
     handles details from log['details'] and returns a dictionary
     would simply split(','), but commas exist in comment fields
     """
     questions = {}
     last_ques = None
-    for i, ques in enumerate(s.split(',')):
+    for i, ques in enumerate(log_details.split(',')):
         if '=' not in ques:
             last_ques += ques
             ques = last_ques
@@ -293,6 +300,16 @@ def export_crfs_and_crf_data_to_db(db, project):
 
 
 def comp_redcap_and_db_schemas(db, project):
+
+    """
+    cycles through forms in project and compares redcap schema to database schema
+    called in export_crfs_and_crf_data_to_db
+    if any differences found, add to error log which is printed out
+    at the end of the difference comparision cycle
+
+    db - AMBRA_Backups.database.Database instance
+    project - redcap project instance
+    """
 
 
     # differences across schemas
@@ -613,7 +630,7 @@ def df_to_db_table(db, df, table_name):
     table_columns = [col[0] for col in db.run_select_query(f"SHOW COLUMNS FROM {table_name}") if col[0] != 'id']
     if not set(df.columns) <= set(table_columns):
         raise ValueError(f'''Columns in dataframe not in table {table_name}:
-                         \ndf columns: \n{df.columns.to_list()}\n table columns: \n{table_columns}''')
+                         \ndf columns: \n{df.columns.to_list()}\ntable columns: \n{table_columns}''')
     
 
     # replacements for sql
