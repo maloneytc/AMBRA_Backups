@@ -53,8 +53,16 @@ def details_to_dict(s):
 
 def project_data_to_db(db, project):
     """
-    Exports data from redcap logs into db.
-    Uses backup_info_RedCap to determine a time interval to look for logs
+    Exports data from redcap logs into db
+    1. extract logs from redcap from last successful update to now
+    2. insert new patients into db if any new patients
+    3. extract then remove instance, complete, and record_id from logs
+    4. find crf_name from log questions
+    5. if log variables cannot match a crf_name, add to failed_to_add list, 
+       otherwise continue to handle crf
+    6. if crf_row for (patient,crf_name,instance) does not exist, insert new crf_row
+       if exists, update verified/complete if exists and differs from log
+    7. insert data into crf_data_redcap
     """
 
 
