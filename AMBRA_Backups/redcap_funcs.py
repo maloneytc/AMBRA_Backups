@@ -4,33 +4,11 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
+from tqdm import tqdm
 from bs4 import BeautifulSoup
-
 from redcap import Project
-
 import configparser
 import sys
-config = configparser.ConfigParser()
-config.read(Path.home().joinpath('.ambra_loc'))
-sys.path.insert(0, config['AMBRA_Backups']['Path'])
-sys.path.insert(0, config['AMBRA_Utils']['Path'])
-import AMBRA_Backups
-import AMBRA_Utils
-
-
-def get_redcap_project(proj_name, config_path=None):
-        if config_path:
-            config_file = Path(config_path)
-        else:
-            config_file = Path.home().joinpath('.redcap_api')
-        if not config_file.exists():
-            logging.error(f'Could not find the credentials file: {config_file}')
-
-        config = configparser.ConfigParser()
-        config.read(config_file)
-        proj_config = config[proj_name]
-        return Project('https://redcap.research.cchmc.org/api/', proj_config['token'])
-
 
 
 def get_record_dict(project):
@@ -75,23 +53,13 @@ def redcap_form_count(project):
     master_form_var_dict = get_form_var_dict(project)
     record_dict = get_record_dict(project)
 
-
-    # get the empty record from project for comparision.
-    # Will error out if no record 'empty_record'
-    if 'empty_record' in record_dict.keys():
-        empty_data_dict = record_dict['empty_record']
+def get_redcap_project(proj_name, config_path=None):
+    if config_path:
+        config_file = Path(config_path)
     else:
-        raise ValueError(f"""There is no 'empty_record' in project {project.export_project_info()['project_title']}""")
-
-
-    # empty record value dictionary
-    form_names = [form['instrument_name'] for form in project.export_instruments()]
-    form_empty_value_dict = {}
-    for form_name in form_names:
-        key_subset = master_form_var_dict[form_name]
-        form_empty_dict = {key: empty_data_dict[key] for key in key_subset if key in empty_data_dict}
-        form_empty_value_dict[form_name] = form_empty_dict
-
+        config_file = Path.home().joinpath('.redcap_api')
+    if not config_file.exists():
+        logging.error(f'Could not find credentials file: {config_file}')
 
     # counting and returning non-empty forms
     non_empty_count = 0
@@ -101,7 +69,6 @@ def redcap_form_count(project):
             if form_empty_value_dict[form_name] != values_in_form:
                 non_empty_count+=1
     return non_empty_count
-
 
 
 def backup_from(db, project, start):
@@ -121,12 +88,12 @@ def backup_from(db, project, start):
     """, None)
 
 
-
 def details_to_dict(log_details):
     """
     log_details - string of details from redcap log
     handles details from log['details'] and returns a dictionary
     would simply split(','), but commas exist in comment fields
+
     """
     questions = {}
     last_ques = None
@@ -147,16 +114,22 @@ def details_to_dict(log_details):
 
 
 
-def export_crfs_and_crf_data_to_db(db, project):
+def project_data_to_db(db, project):
     """
-    Exports data from redcap logs into db.
-    Uses backup_info_RedCap to determine a time interval to look for logs
+    Exports data from redcap logs into db
+    1. extract logs from redcap from last successful update to now
+    2. insert new patients into db if any new patients
+    3. extract then remove instance, complete, and record_id from logs
+    4. find crf_name from log questions
+    5. if log variables cannot match a crf_name, add to failed_to_add list, 
+       otherwise continue to handle crf
+    6. if crf_row for (patient,crf_name,instance) does not exist, insert new crf_row
+       if exists, update verified/complete if exists and differs from log
+    7. insert data into crf_data_redcap
     """
 
 
     # internval for logs to be extracted 
-    # interval_start = datetime.strptime(
-    #     db.run_select_query("""SELECT * FROM backup_info_RedCap""")[0][1], '%Y-%m-%d %H:%M:%S.%f')
     interval_start = db.run_select_query("""SELECT * FROM backup_info_RedCap""")[0][1]
     interval_end = datetime.now()
     logs = project.export_logging(begin_time=interval_start, end_time=interval_end)
@@ -164,13 +137,11 @@ def export_crfs_and_crf_data_to_db(db, project):
 
     # getting logs that modify records
     record_action = ['Update record', 'Create record']
-    manage_details = ['Delete project field', 'Edit project field', 'Create project field']
-    record_logs = [log for log in logs if (re.sub(r'\d+$', '', log['action']).strip() in record_action) or
-                                          (log['action'] == 'Manage/Design ' and log['details'] in manage_details)]
+    record_logs = [log for log in logs if re.sub(r'\d+$', '', log['action']).strip() in record_action]
     record_logs.reverse() # list starts with most recent. Flipping order to update chronologically
 
 
-    # map forms to their variables
+    # dictionary of form names and their variables
     master_form_var_dict = {}
     for var in project.metadata:
         if var['field_name'] == 'record_id': continue # not necessary. record_id will be created at creation of a patient in redcap
@@ -182,78 +153,84 @@ def export_crfs_and_crf_data_to_db(db, project):
 
     # list of forms that have repeating instruments
     form_names = [form['instrument_name'] for form in project.export_instruments()]
-    rep_inst = []
+    repeating_forms = []
     if project.export_project_info()['has_repeating_instruments_or_events'] == 1: 
         rep_forms = [form['form_name'] for form in project.export_repeating_instruments_events()]
         for name in form_names: 
             if name in rep_forms:
-                rep_inst.append(name)
+                repeating_forms.append(name)
 
 
-    # handle redcap crf and crf_data for each log
+
+    # list of current patients in db to check if there is a new patient
+    patients = [p[0] for p in db.run_select_query("""SELECT patient_name FROM patients""")]
+
+    
+    # loop through record_logs and add to db
     failed_to_add = []
-    for i, log in enumerate(record_logs):
+    for i, log in tqdm(enumerate(record_logs), total=len(record_logs)):
         if log['details'] == '': continue # no changes to record
         
         
         # compare forms, if any error differences, raise error
-        if log['action'] == 'Manage/Design ':
-            comp_redcap_and_db_schemas(db, project)
+        # if log['action'] == 'Manage/Design ':
+        #     comp_redcap_and_db_schemas(db, project)
 
 
-        # patient id from record_id. updated fields from log['details']
-        patient_id = int(log['action'].split(' ')[-1].strip())
+
+        patient_id = log['action'].split(' ')[-1].strip()
+        if patient_id not in patients:
+            db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_id, patient_id])
+ 
+
+        # formatting detail string into dictionary of ques: value
         ques_value_dict = details_to_dict(log['details'])
 
 
-        # if repeating instrument, pull out instance number
+        # removing following fields from ques:value to insert to db:
+        # instance
         instance = None
         if '[instance' in ques_value_dict.keys():
             instance = int(ques_value_dict['[instance'][0])
             ques_value_dict.pop('[instance')
-
-
-        # removing complete field from data to populate
+        # complete fields
         all_form_complete_fields = set(form+'_complete' for form in master_form_var_dict.keys())
         complete_field_intersection = all_form_complete_fields.intersection(set(ques_value_dict.keys()))
         if complete_field_intersection:
             n = complete_field_intersection.pop()
             ques_value_dict.pop(n)
-
-
-        # record_id is the patient_id, not to be put into data table
+        # record_id
         if 'record_id' in ques_value_dict.keys():
             ques_value_dict.pop('record_id')
 
-
-        # if <form_name>_complete and record_id were the only changes, nothing to add to database
+        # if after removing instance, complete, and record_id, ques:value is empty, nothing to add to database 
         if len(ques_value_dict) == 0:
             continue
 
 
-        # find form name from log variables
+        # The intersection of the log variables and the master form variables give the sub set 
+        # belonging to the form of interest
         log_ques = set([ques_value.split('(')[0].strip() for ques_value in ques_value_dict.keys()])
         crf_name = None
-        for form, all_ques in master_form_var_dict.items():
-            if log_ques.intersection(set(all_ques)):
+        for form, form_ques in master_form_var_dict.items():
+            if log_ques.intersection(set(form_ques)):
                 crf_name = form
 
+        # if no form found, log variable is not up to date with current redcap variables
+        if crf_name is None:
+            failed_to_add.append((patient_id, log['timestamp'], ques_value_dict))
+            # raise ValueError(f'No matching form found for the following questions: {log_ques}')
 
-        # if the first instance of a repeated form, instance variable will not appear
-        if (instance is None) and crf_name in rep_inst:
+
+        # the instance variable will not appear in the log if it is the first instance of a repeating form
+        if (instance is None) and (crf_name in repeating_forms):
             instance = 1
 
 
-        # if no form found, log variables are not up to date with current redcap variables
-        if crf_name is None:
-            failed_to_add.append(log_ques)
-            raise ValueError(f'No matching form found for the following questions: {log_ques}')
-
-
-        # grab crf_row. If no crf, check for verified data point to 
-        # determine verified, then create new crf_row with new crf_id
+        # try to grab crf_row from patient, if none insert new crf_row
+        # if exists, check if verified needs updated
         crf_row = db.run_select_query(f"""SELECT * FROM CRF_RedCap WHERE id_patient = {patient_id} AND crf_name = \'{crf_name}\' 
-                                      AND instance {'IS NULL' if instance is None else f'= {instance}'}""")
+                                      AND instance {'IS NULL' if instance is None else f'= {instance}'}""") # cant use record here, because ('IS NULL' or '= #') is not a sql variable
         if len(crf_row) == 0:
             if f'{crf_name}_status' in ques_value_dict.keys():
                 if ques_value_dict[f'{crf_name}_status'] == '4':
@@ -264,7 +241,7 @@ def export_crfs_and_crf_data_to_db(db, project):
             else:
                 verified = 0 # new form, not in log, verified @DEFAULT = '0'
             crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified) VALUES 
-                                         ({patient_id}, \'{crf_name}\', {'NULL' if instance is None else instance}, {verified})""", None)
+                                         ({patient_id}, \'{crf_name}\', {'NULL' if instance is None else instance}, {verified})""", None) 
         # if crf does exist, grab crf_id, and check if db_verified needs updated
         else:
             crf_id = crf_row[0][0]
@@ -275,10 +252,10 @@ def export_crfs_and_crf_data_to_db(db, project):
                         verified = 1
                     else:
                         verified = 0
-                    db.run_insert_query(f"UPDATE CRF_RedCap SET verified = \'{verified}\' WHERE id = {crf_row[0][0]}", None)
+                    db.run_insert_query(f"UPDATE CRF_RedCap SET verified = %s WHERE id = %s", [verified, crf_row[0][0]])
                 ques_value_dict.pop(f'{crf_name}_status')
             else:
-                verified = db_verified
+                verified = db_verified # for print out 
 
 
         # insert data into crf_data_redcap
@@ -289,14 +266,9 @@ def export_crfs_and_crf_data_to_db(db, project):
             ON DUPLICATE KEY UPDATE value=%s;
             """, (crf_id, value, key,
                     value))           
+            
 
-
-        print(f'form: {crf_name}')
-        print(f'fields: {ques_value_dict}')
-        print(f'instance: {instance}')
-        print(f'verified: {verified}')
-        print('-----')
-
+    return failed_to_add
 
 
 def comp_redcap_and_db_schemas(db, project):
@@ -391,25 +363,21 @@ def comp_redcap_and_db_schemas(db, project):
     else:
         print('---- \nNo differences between RedCap and database forms\n ----')
 
-
     
-
-def db_formated_schema(project, form):
-
-
-    # check form belongs to project. Also checks for csv extension
-    forms_with_csvs = project.forms + [form + '.csv' for form in project.forms]
-    if form not in forms_with_csvs:
-        raise ValueError(f"""Form {form} does not belong to project 
-                         {project.export_project_info()['project_title']} with forms: {project.forms}""")
+    config = configparser.ConfigParser()
+    config.read(Path.home().joinpath('.ambra_loc'))
+    sys.path.insert(0, config['AMBRA_Backups']['Path'])
+    sys.path.insert(0, config['AMBRA_Utils']['Path'])
+    import AMBRA_Backups
+    import AMBRA_Utils
 
 
-    # if passing in a csv, dont use api, load file
-    if '.csv' in form:
-        df = pd.read_csv(form)
-        df = df[['Form Name', 'Variable / Field Name', 'Field Label', 'Choices, Calculations, OR Slider Labels',
-                  'Text Validation Type OR Show Slider Number', 'Field Note', 'Field Type']]
+    testing = 1
+    if testing:
+        project = get_redcap_project('14102 Khandwala-Radiology Imaging Services Core Lab Workflow')
+        db = AMBRA_Backups.database.Database('CAPTIVA_Test')
     else:
+
         df = pd.DataFrame([var for var in project.metadata if var['form_name'] == form])
         df = df[['form_name', 'field_name', 'field_label', 'select_choices_or_calculations', 
                  'text_validation_type_or_show_slider_number', 'field_note', 'field_type', 'field_annotation']]
