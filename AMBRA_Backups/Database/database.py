@@ -779,8 +779,8 @@ class Database():
         with self.connection.cursor(buffered=True) as cursor:
             download_query = """SELECT studies.uuid, studies.study_uid, studies.phi_namespace, backup_info.namespace_name, studies.id
                                 FROM studies INNER JOIN backup_info ON studies.phi_namespace = backup_info.namespace_id
-                                WHERE studies.is_downloaded IS NULL OR studies.is_downloaded=FALSE
-                                AND studies.deleted != 1 OR studies.deleted is NULL;"""
+                                WHERE (studies.is_downloaded IS NULL OR studies.is_downloaded=FALSE)
+                                AND (studies.deleted != 1 OR studies.deleted is NULL);"""
             #download_query = """SELECT studies.id
             #                    FROM studies
             #                    WHERE studies.is_downloaded IS NULL OR studies.is_downloaded=FALSE;"""
