@@ -125,3 +125,5 @@ def strip_ext(input):
     assert stem.suffix == '.nii'
 
     return stem.with_suffix('')
+
+
