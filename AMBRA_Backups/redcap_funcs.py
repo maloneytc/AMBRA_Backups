@@ -27,14 +27,14 @@ def get_redcap_project(proj_name, config_path=None):
 
 
 
-def details_to_dict(s):
+def details_to_dict(log_details):
     """
     handles details from log['details'] and returns a dictionary.
     commas exist in comment field so cannot simply split(',')
     """
     questions = {}
     last_ques = None
-    for i, ques in enumerate(s.split(',')):
+    for i, ques in enumerate(log_details.split(',')):
         if '=' not in ques:
             last_ques += ques
             ques = last_ques
