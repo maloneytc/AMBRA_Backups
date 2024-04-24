@@ -145,9 +145,9 @@ def df_to_db_table(db, df, table_name):
                          \ndf columns: \n{df.columns.to_list()}\n table columns: \n{table_columns}''')
     
 
-    # replacements for sql
-    df = df.applymap(lambda x: x.replace("'", "\\'") if isinstance(x, str) else x)
-    df = df.fillna('NULL')
+    # if any single quotes, must have been handled before passed to function
+    if df.applymap(lambda x: isinstance(x, str) and "'" in x and "\\'" not in x).any().any():
+        raise ValueError('Dataframe contains single quotes. Please remove them before inserting into database.')
 
 
     # insert new schema into db
@@ -158,9 +158,9 @@ def df_to_db_table(db, df, table_name):
         values = ', '.join([f'\'{v}\'' for v in row.values]).replace("'NULL'", "NULL")
         update = ', '.join([f"{col}='{row[col]}'" for col in set(df.columns.to_list())]).replace("'NULL'", "NULL")
         query = f"""INSERT INTO {table_name} (`id`, {columns}) 
-                    VALUES ('{i+1}', {values})
-                    ON DUPLICATE KEY UPDATE {update};
-                    """
+                VALUES ('{i+1}', {values})
+                ON DUPLICATE KEY UPDATE {update};
+                """
         db.run_insert_query(query, None)
 
     return 0
