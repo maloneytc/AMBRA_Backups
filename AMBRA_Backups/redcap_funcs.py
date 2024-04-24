@@ -16,7 +16,7 @@ def get_redcap_project(proj_name, config_path=None):
     if config_path:
         config_file = Path(config_path)
     else:
-        config_file = Path.home().joinpath('.redcap_api')
+        config_file = Path.home().joinpath('.redcap.cfg')
     if not config_file.exists():
         logging.error(f'Could not find credentials file: {config_file}')
 
