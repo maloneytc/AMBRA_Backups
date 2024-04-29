@@ -63,6 +63,8 @@ def project_data_to_db(db, project):
     6. if crf_row for (patient,crf_name,instance) does not exist, insert new crf_row
        if exists, update verified/complete if exists and differs from log
     7. insert data into crf_data_redcap
+
+    Note: if a log appears in redcap, but not through the api, this is normal
     """
 
 
