@@ -107,7 +107,7 @@ def project_data_to_db(db, project):
 
 
     # list of current patients in db to check if there is a new patient
-    patients = [p[0] for p in db.run_select_query("""SELECT patient_name FROM patients""")]
+    patient_names = [p[0] for p in db.run_select_query("""SELECT patient_name FROM patients""")]
 
     
     # loop through record_logs and add to db
@@ -122,10 +122,13 @@ def project_data_to_db(db, project):
 
 
 
-        patient_id = log['action'].split(' ')[-1].strip()
-        if patient_id not in patients:
-            db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_id, patient_id])
- 
+        patient_name = log['action'].split(' ')[-1].strip()
+        if patient_name not in patient_names:
+            patient_id = db.run_insert_query(f"""SELECT MAX(id) FROM patients""")[0][0] + 1
+            db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_name, patient_id])
+        else:
+            patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
+
 
         # formatting detail string into dictionary of ques: value
         ques_value_dict = details_to_dict(log['details'])
@@ -162,7 +165,7 @@ def project_data_to_db(db, project):
 
         # if no form found, log variable is not up to date with current redcap variables
         if crf_name is None:
-            failed_to_add.append((patient_id, log['timestamp'], ques_value_dict))
+            failed_to_add.append((patient_name, log['timestamp'], ques_value_dict))
             # raise ValueError(f'No matching form found for the following questions: {log_ques}')
 
 
@@ -227,7 +230,7 @@ if __name__ == '__main__':
     import AMBRA_Utils
 
 
-    testing = 1
+    testing = 0
     if testing:
         project = get_redcap_project('14102 Khandwala-Radiology Imaging Services Core Lab Workflow')
         db = AMBRA_Backups.database.Database('CAPTIVA_Test')
