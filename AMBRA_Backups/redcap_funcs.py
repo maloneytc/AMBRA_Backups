@@ -70,7 +70,11 @@ def project_data_to_db(db, project):
 
 
     # internval for logs to be extracted 
-    interval_start = db.run_select_query("""SELECT * FROM backup_info_RedCap""")[0][1]
+    interval_start = db.run_select_query("""SELECT * FROM backup_info_RedCap""")
+    if len(interval_start) == 0: # if new project without any backup info, start from 2000, all data
+        interval_start = datetime(2000, 1, 1)
+    else:
+        interval_start = interval_start[0][1]
     interval_end = datetime.now()
     logs = project.export_logging(begin_time=interval_start, end_time=interval_end)
 
@@ -108,7 +112,7 @@ def project_data_to_db(db, project):
     
     # loop through record_logs and add to db
     failed_to_add = []
-    for i, log in tqdm(enumerate(record_logs), total=len(record_logs)):
+    for i, log in tqdm(enumerate(record_logs), total=len(record_logs), desc='Adding data logs to db'):
         if log['details'] == '': continue # no changes to record
         
         
