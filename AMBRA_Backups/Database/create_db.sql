@@ -11,6 +11,21 @@ CREATE TABLE `backup_info` (
   UNIQUE KEY `id_namespace` (`namespace_name`, `namespace_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+--
+-- Table structure for table `backup_info_RedCap`
+--
+
+DROP TABLE IF EXISTS `backup_info_RedCap`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `backup_info_RedCap` (
+  `project_name` varchar(255) NOT NULL,
+  `last_backup` datetime DEFAULT NULL,
+  PRIMARY KEY (`project_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+
 DROP TABLE IF EXISTS `reports`;
 CREATE TABLE `reports` (
   `id` INT NOT NULL AUTO_INCREMENT,
@@ -93,6 +108,90 @@ CREATE TABLE `CRF_Data` (
   UNIQUE KEY `crf_and_span_id` (`id_crf`,`html_span_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+
+--
+-- Table structure for table `CRF_Data_RedCap`
+--
+
+DROP TABLE IF EXISTS `CRF_Data_RedCap`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `CRF_Data_RedCap` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_crf` int DEFAULT NULL,
+  `value` varchar(1024) DEFAULT NULL,
+  `redcap_variable` varchar(255) DEFAULT NULL,
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `crf_and_span_id` (`id_crf`,`redcap_variable`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=1976 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `CRF_RedCap`
+--
+
+DROP TABLE IF EXISTS `CRF_RedCap`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `CRF_RedCap` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_patient` int DEFAULT NULL,
+  `crf_name` varchar(255) DEFAULT NULL,
+  `instance` int DEFAULT NULL,
+  `verified` tinyint(1) DEFAULT '0',
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+
+--
+-- Table structure for table `CRF_Schema_RedCap`
+--
+
+DROP TABLE IF EXISTS `CRF_Schema_RedCap`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `CRF_Schema_RedCap` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `crf_name` varchar(45) DEFAULT NULL COMMENT 'Name of the CRF that this question belongs to.',
+  `data_id` varchar(45) DEFAULT NULL COMMENT 'id to use in reports',
+  `question_text` varchar(255) DEFAULT NULL COMMENT 'Text of the question as it is displayed on the CRF.',
+  `question_sub_text` varchar(255) DEFAULT NULL,
+  `data_labels` varchar(255) DEFAULT NULL COMMENT 'Label of the data entry field describing data entry format or data choices.',
+  `redcap_variable` varchar(45) DEFAULT NULL COMMENT 'variables used in redcap forms',
+  `notes` varchar(512) DEFAULT NULL COMMENT 'Any notes related to this question.',
+  `crf_section` varchar(45) DEFAULT NULL COMMENT 'section of redcap form question belongs to',
+  `option_order` varchar(45) DEFAULT NULL COMMENT 'order of option for checkbox question',
+  `option_col_num` varchar(45) DEFAULT NULL COMMENT 'column placement of option in checkbox question',
+  `record_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `record_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_question` (`crf_name`,`redcap_variable`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `CRF_Sections`
+--
+
+DROP TABLE IF EXISTS `CRF_Sections`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `CRF_Sections` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `crf_name` varchar(45) DEFAULT NULL,
+  `section_number` int DEFAULT NULL,
+  `section_name` varchar(128) DEFAULT NULL,
+  `section_description` varchar(512) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 
 DROP TABLE IF EXISTS `sequence_name`;
 CREATE TABLE `sequence_name` (
