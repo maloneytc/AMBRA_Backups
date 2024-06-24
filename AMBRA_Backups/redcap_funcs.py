@@ -124,8 +124,7 @@ def project_data_to_db(db, project):
 
         patient_name = log['action'].split(' ')[-1].strip()
         if patient_name not in patient_names:
-            patient_id = db.run_insert_query(f"""SELECT MAX(id) FROM patients""")[0][0] + 1
-            db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_name, patient_id])
+            db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_name, patient_name])
         else:
             patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
 
@@ -221,11 +220,7 @@ def project_data_to_db(db, project):
 # using main for testing purposes, manual backups
 if __name__ == '__main__':
 
-    
-    config = configparser.ConfigParser()
-    config.read(Path.home().joinpath('.ambra_loc'))
-    sys.path.insert(0, config['AMBRA_Backups']['Path'])
-    sys.path.insert(0, config['AMBRA_Utils']['Path'])
+
     import AMBRA_Backups
     import AMBRA_Utils
 
@@ -239,8 +234,8 @@ if __name__ == '__main__':
         db = AMBRA_Backups.database.Database('CAPTIVA')
 
     # manual backup
-    start_date = datetime(2023, 1, 1)
-    db.run_insert_query("""UPDATE backup_info_RedCap SET last_backup = %s""", [start_date])
+    # start_date = datetime(2023, 1, 1)
+    # db.run_insert_query("""UPDATE backup_info_RedCap SET last_backup = %s""", [start_date])
     failed_to_add = project_data_to_db(db, project)
     # saving logs that failed to upload to database
     if failed_to_add:
