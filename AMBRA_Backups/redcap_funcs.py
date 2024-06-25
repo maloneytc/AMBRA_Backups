@@ -105,10 +105,6 @@ def project_data_to_db(db, project):
                 repeating_forms.append(name)
 
 
-
-    # list of current patients in db to check if there is a new patient
-    patient_names = [p[0] for p in db.run_select_query("""SELECT patient_name FROM patients""")]
-
     
     # loop through record_logs and add to db
     failed_to_add = []
@@ -121,12 +117,13 @@ def project_data_to_db(db, project):
         #     comp_redcap_and_db_schemas(db, project)
 
 
+        # list of current patients in db to check if there is a new patient
+        patient_names = [p[0] for p in db.run_select_query("""SELECT patient_name FROM patients""")]
 
         patient_name = log['action'].split(' ')[-1].strip()
         if patient_name not in patient_names:
             db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_name, patient_name])
-        else:
-            patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
+        patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
 
 
         # formatting detail string into dictionary of ques: value
@@ -179,7 +176,7 @@ def project_data_to_db(db, project):
                                       AND instance {'IS NULL' if instance is None else f'= {instance}'}""") # cant use record here, because ('IS NULL' or '= #') is not a sql variable
         if len(crf_row) == 0:
             if f'{crf_name}_status' in ques_value_dict.keys():
-                if ques_value_dict[f'{crf_name}_status'] == '4':
+                if ques_value_dict[f'{crf_name}_status'] == '4' or ques_value_dict[f'{crf_name}_status'] == '5':
                     verified = 1
                 else:
                     verified = 0
@@ -194,7 +191,7 @@ def project_data_to_db(db, project):
             db_verified = crf_row[0][-1]
             if f'{crf_name}_status' in ques_value_dict.keys():
                 if db_verified != ques_value_dict[f'{crf_name}_status']:
-                    if ques_value_dict[f'{crf_name}_status'] == '4':
+                    if ques_value_dict[f'{crf_name}_status'] == '4' or ques_value_dict[f'{crf_name}_status'] == '5':
                         verified = 1
                     else:
                         verified = 0
