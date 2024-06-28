@@ -159,7 +159,7 @@ def df_to_db_table(db, df, table_name):
     values = df.values.tolist()
     values = [item for sublist in values for item in sublist]
 
-    q(f"""INSERT INTO {table_name} 
+    db.run_insert_query(f"""INSERT INTO {table_name} 
               {columns} 
           VALUES 
               {values_string}
