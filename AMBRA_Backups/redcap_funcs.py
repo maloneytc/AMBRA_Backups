@@ -152,14 +152,6 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 continue
 
 
-            # list of current patients in db to check if there is a new patient
-            patient_names = [p[0] for p in db.run_select_query("""SELECT patient_name FROM patients""")]
-            patient_name = log['action'].split(' ')[-1].strip()
-            if patient_name not in patient_names:
-                db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_name, patient_name])
-            patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
-
-
             # formatting detail string into dictionary of ques: value
             ques_value_dict = details_to_dict(log['details'])
 
@@ -184,6 +176,10 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             if len(ques_value_dict) == 0:
                 continue
 
+            # the instance variable will not appear in the log if it is the first instance of a repeating form
+            if (instance is None) and (crf_name in repeating_forms):
+                instance = 1
+
 
             # The intersection of the log variables and the master form variables give the sub set 
             # belonging to the form of interest
@@ -200,9 +196,37 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 # raise ValueError(f'No matching form found for the following questions: {log_ques}')
 
 
-            # the instance variable will not appear in the log if it is the first instance of a repeating form
-            if (instance is None) and (crf_name in repeating_forms):
-                instance = 1
+            # list of current patients in db to check if there is a new patient
+            patient_names = [p[0] for p in db.run_select_query("""SELECT patient_name FROM patients""")]
+            patient_name = log['action'].split(' ')[-1].strip()
+            if patient_name not in patient_names:
+                db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_name, patient_name])
+                patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
+
+
+                project = AMBRA_Backups.redcap_funcs.get_redcap_project('CAPTIVA Data Collection')
+                forms = [f['instrument_name'] for f in project.export_instruments()]
+                df = pd.DataFrame()
+                for form in forms:
+                    form_df = pd.DataFrame(project.export_records(records=[patient_name], forms=[form])).iloc[:1]
+                    irr_num = 3 if form_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
+                    form_df = form_df[form_df.columns[irr_num:]]
+                    df = pd.concat([df, form_df], axis=1)
+
+                df = df.melt(var_name='redcap_variable')
+ 
+
+                crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified, deleted) VALUES 
+                                            ({patient_id}, \'{crf_name}\', {'NULL' if instance is None else instance}, {verified}, 0)""", None)
+                
+                crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified, deleted) VALUES 
+                                            ({patient_id}, \'{crf_name}\', {'NULL' if instance is None else instance}, {verified}, 0)""", [patient_id, crf_name, instance])
+
+
+            patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
+
+
+            
 
 
             # try to grab crf_row from patient, if none insert new crf_row
@@ -231,6 +255,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                     db.run_insert_query(f"UPDATE CRF_RedCap SET verified = %s WHERE id = %s", [verified, crf_row[0][0]])
                     ques_value_dict.pop(f'{crf_name}_status')
                 
+
 
 
             # insert data into crf_data_redcap
