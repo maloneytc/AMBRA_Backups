@@ -164,10 +164,10 @@ def df_to_db_table(db, df, table_name):
     values = [item for sublist in values for item in sublist]
 
     ret = db.run_insert_query(f"""INSERT INTO {table_name} 
-                                {columns} 
-                            VALUES 
-                                {values_string}
-                            ON DUPLICATE KEY UPDATE 
-                                {update_string}""", values)
+                                      {columns} 
+                                  VALUES 
+                                      {values_string}
+                                  ON DUPLICATE KEY UPDATE 
+                                      {update_string}""", values)
 
     return ret

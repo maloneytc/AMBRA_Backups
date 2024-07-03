@@ -86,6 +86,21 @@ def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
     return logs
 
 
+def get_form_df(project, patient_name, crf_name):
+    """
+    project.export_records() has a bug where if the first form of a project is a repeating form
+    an extra row of data is added with residual when exporting from subsequent forms.
+    This function removes the residual row if it exists
+    """
+    form_df = pd.DataFrame(project.export_records(records=[patient_name], forms=[crf_name]))
+    if form_df.empty: 
+        return form_df
+    first_form_name = project.export_instruments()[0]['instrument_name']
+    if crf_name != first_form_name and 'redcap_repeat_instrument' in form_df.columns:
+        form_df = form_df[form_df['redcap_repeat_instrument'] != first_form_name]
+    form_df = form_df.iloc[-1].to_frame().T
+    return form_df
+
 
 def project_data_to_db(db, project, start_date=None, end_date=None):
     """
@@ -208,7 +223,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         # try to grab crf_row from patient, if none insert new crf_row
         # if exists, check if verified needs updated
         crf_row = db.run_select_query(f"""SELECT * FROM CRF_RedCap WHERE id_patient = {patient_id} AND crf_name = \'{crf_name}\' 
-                                    AND instance {'IS NULL' if instance is None else f'= {instance}'}""") # cant use record here, because ('IS NULL' or '= #') is not a sql variable
+                                    AND instance {'IS NULL' if instance is None else f'= {instance}'} AND deleted = '0'""") # cant use record here, because ('IS NULL' or '= #') is not a sql variable
         if len(crf_row) == 0:
 
             # inserting crf
@@ -224,12 +239,12 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified, deleted) VALUES 
                                             (%s, %s, {'NULL' if instance is None else instance}, %s, %s)""", [patient_id, crf_name, verified, deleted])
             
-
-            form_df = pd.DataFrame(project.export_records(records=[patient_name], forms=[crf_name])).iloc[-1:]
+            
+            form_df = get_form_df(project, patient_name, crf_name)
             if form_df.empty: # if empty, means there is no live data for this patient and a deleted log should appear later
                 continue 
-            irr_num = 3 if form_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
-            form_df = form_df[form_df.columns[irr_num:]]
+            irr_cols = 3 if form_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
+            form_df = form_df[form_df.columns[irr_cols:]]
             form_df = form_df.melt(var_name='redcap_variable')
             form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable']+')'
             form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable'].str.replace('___', '(')
@@ -318,9 +333,9 @@ if __name__ == '__main__':
     # manual backup
     # start_date = datetime(2023, 1, 1)
     # db.run_insert_query("""UPDATE backup_info_RedCap SET last_backup = %s""", [start_date])
-    start_date = datetime(2022, 7, 1, 13, 39)
-    end_date = datetime(2024, 7, 1, 13, 41)
-    project_data_to_db(db, project, start_date, end_date)
+    start_date = datetime(2024, 7, 3, 13, 39)
+    # end_date = datetime(2024, 7, 1, 13, 41)
+    project_data_to_db(db, project, start_date)
 
 
 
