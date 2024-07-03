@@ -6,7 +6,7 @@ import subprocess
 import os
 import shutil
 import pandas as pd
-
+import numpy as np
 import hashlib
 
 
@@ -145,6 +145,10 @@ def df_to_db_table(db, df, table_name):
                          \ndf columns: \n{df.columns.to_list()}\n table columns: \n{table_columns}''')
     
 
+    # replacements
+    # df.replace({np.nan: 'NULL'}, inplace=True)
+    
+
     # Change 6/28/24: Think it would make sense to allow single quotes into the db
     #                 Wouldnt want to handle strings with single quotes in them later
     # if any single quotes, must have been handled before passed to function
@@ -154,7 +158,7 @@ def df_to_db_table(db, df, table_name):
 
     columns = df.columns.tolist()
     columns = '('+', '.join(columns)+')'
-    values_string = ', '.join(['(%s, %s, %s)']*len(df))
+    values_string = ', '.join(['('+','.join(['%s']*len(df.columns))+')']*len(df))
     update_string = ', '.join([f'{column}=VALUES({column})' for column in df.columns[1:]])
     values = df.values.tolist()
     values = [item for sublist in values for item in sublist]
