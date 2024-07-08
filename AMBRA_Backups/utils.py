@@ -131,6 +131,7 @@ def strip_ext(input):
 def df_to_db_table(db, df, table_name):
     """
     inputs df rows into table. Table must exist and have the same columns as df
+    Null entries to the table should be filled with None in the df
     """
 
     # if table not not in db, error
