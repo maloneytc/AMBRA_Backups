@@ -145,10 +145,6 @@ def df_to_db_table(db, df, table_name):
                          \ndf columns: \n{df.columns.to_list()}\n table columns: \n{table_columns}''')
     
 
-    # replacements
-    # df.replace({np.nan: 'NULL'}, inplace=True)
-    
-
     # Change 6/28/24: Think it would make sense to allow single quotes into the db
     #                 Wouldnt want to handle strings with single quotes in them later
     # if any single quotes, must have been handled before passed to function
