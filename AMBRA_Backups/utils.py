@@ -6,7 +6,7 @@ import subprocess
 import os
 import shutil
 import pandas as pd
-
+import numpy as np
 import hashlib
 
 
@@ -131,6 +131,7 @@ def strip_ext(input):
 def df_to_db_table(db, df, table_name):
     """
     inputs df rows into table. Table must exist and have the same columns as df
+    Null entries to the table should be filled with None in the df
     """
 
     # if table not not in db, error
@@ -145,22 +146,25 @@ def df_to_db_table(db, df, table_name):
                          \ndf columns: \n{df.columns.to_list()}\n table columns: \n{table_columns}''')
     
 
+    # Change 6/28/24: Think it would make sense to allow single quotes into the db
+    #                 Wouldnt want to handle strings with single quotes in them later
     # if any single quotes, must have been handled before passed to function
-    if df.applymap(lambda x: isinstance(x, str) and "'" in x and "\\'" not in x).any().any():
-        raise ValueError('Dataframe contains single quotes. Please remove them before inserting into database.')
+    # if df.applymap(lambda x: isinstance(x, str) and "'" in x and "\\'" not in x).any().any():
+    #     raise ValueError('Dataframe contains single quotes. Please remove them before inserting into database.')
 
 
-    # insert new schema into db
-    columns = str(df.columns.to_list()).strip('[').strip(']').replace("'", "`")
-    start = db.run_select_query(f"SELECT id FROM {table_name}", None)
-    start = start[-1][0] if start else 0
-    for i, (_, row) in zip(range(start, start+len(df)), df.iterrows()):
-        values = ', '.join([f'\'{v}\'' for v in row.values]).replace("'NULL'", "NULL")
-        update = ', '.join([f"{col}='{row[col]}'" for col in set(df.columns.to_list())]).replace("'NULL'", "NULL")
-        query = f"""INSERT INTO {table_name} (`id`, {columns}) 
-                VALUES ('{i+1}', {values})
-                ON DUPLICATE KEY UPDATE {update};
-                """
-        db.run_insert_query(query, None)
+    columns = df.columns.tolist()
+    columns = '('+', '.join(columns)+')'
+    values_string = ', '.join(['('+','.join(['%s']*len(df.columns))+')']*len(df))
+    update_string = ', '.join([f'{column}=VALUES({column})' for column in df.columns[1:]])
+    values = df.values.tolist()
+    values = [item for sublist in values for item in sublist]
 
-    return 0
+    ret = db.run_insert_query(f"""INSERT INTO {table_name} 
+                                      {columns} 
+                                  VALUES 
+                                      {values_string}
+                                  ON DUPLICATE KEY UPDATE 
+                                      {update_string}""", values)
+
+    return ret
