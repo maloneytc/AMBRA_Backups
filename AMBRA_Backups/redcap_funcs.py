@@ -10,6 +10,7 @@ from redcap import Project
 import configparser
 import sys
 
+from AMBRA_Backups import utils
 
 
 def get_redcap_project(proj_name, config_path=None):
@@ -251,7 +252,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             form_df['id_crf'] = crf_id
 
             # inserting data
-            AMBRA_Backups.utils.df_to_db_table(db, form_df, 'CRF_Data_RedCap')
+            utils.df_to_db_table(db, form_df, 'CRF_Data_RedCap')
 
 
         # if crf does exist, grab crf_id, and check if db_verified needs updated
