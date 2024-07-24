@@ -94,8 +94,6 @@ def get_form_df(project, patient_name, crf_name, instance):
     This function removes the residual row if it exists
     """
     form_df = pd.DataFrame(project.export_records(records=[patient_name], forms=[crf_name]))
-    if form_df.empty: 
-        return form_df
     if project.export_project_info()['has_repeating_instruments_or_events']:
         repeating_forms = [f['form_name'] for f in project.export_repeating_instruments_events()]
         if crf_name in repeating_forms:
@@ -105,6 +103,8 @@ def get_form_df(project, patient_name, crf_name, instance):
     else:
         form_df = form_df.iloc[0].to_frame().T
 
+    if all(value == '' for value in form_df[form_df.columns[1:]].iloc[0]): 
+        return pd.DataFrame({})
     return form_df
 
 
