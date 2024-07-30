@@ -9,11 +9,12 @@ from bs4 import BeautifulSoup
 from redcap import Project
 import configparser
 import sys
+import json
 
 from AMBRA_Backups import utils
 
 
-def get_redcap_project(proj_name, config_path=None):
+def get_config(config_path=None):
     if config_path:
         config_file = Path(config_path)
     else:
@@ -23,9 +24,78 @@ def get_redcap_project(proj_name, config_path=None):
 
     config = configparser.ConfigParser()
     config.read(config_file)
+
+    return config
+
+
+def get_redcap_project(proj_name, config_path=None):
+    config = get_config(config_path=config_path)    
     proj_config = config[proj_name]
     return Project('https://redcap.research.cchmc.org/api/', proj_config['token'])
 
+
+def backup_project(project_name, url, api_key, output_dir):
+    """
+    """
+    project = Project(url, api_key)
+    
+    # Info
+    # ---------------
+    info_out = output_dir.joinpath(f'{project_name}_info.json')
+    info_json = {"Project Name": project_name,
+                 "RedCap version": str(project.export_version()),
+                 "Backup date": datetime.now().strftime("%m/%d/%Y %H:%M:%S")}
+    with open(info_out, 'w', encoding='utf-8') as f:
+        json.dump(info_json, f, ensure_ascii=False, indent=4)
+    
+    # Data Dictionary
+    # ---------------
+    meta_json = project.export_metadata(format_type='json')
+    meta_out = output_dir.joinpath(f'{project_name}_metadata.json')
+    with open(meta_out, 'w', encoding='utf-8') as f:
+        json.dump(meta_json, f, ensure_ascii=False, indent=4)
+
+    # Data 
+    # ---------------
+    forms_json = project.export_records(format_type='json')
+    forms_out = output_dir.joinpath(f'{project_name}_forms.json')
+    with open(forms_out, 'w', encoding='utf-8') as f:
+        json.dump(forms_json, f, ensure_ascii=False, indent=4)
+
+    # Users
+    # ---------------
+    users_json = project.export_users(format_type='json')
+    users_out = output_dir.joinpath(f'{project_name}_users.json')
+    with open(users_out, 'w', encoding='utf-8') as f:
+        json.dump(users_json, f, ensure_ascii=False, indent=4)
+
+    # User roles
+    # ---------------
+    roles_json = project.export_user_roles(format_type='json')
+    roles_out = output_dir.joinpath(f'{project_name}_roles.json')
+    with open(roles_out, 'w', encoding='utf-8') as f:
+        json.dump(roles_json, f, ensure_ascii=False, indent=4)
+
+    role_assignment_json = project.export_user_role_assignment(format_type='json')
+    role_assignment_out = output_dir.joinpath(f'{project_name}_roles_assignment.json')
+    with open(role_assignment_out, 'w', encoding='utf-8') as f:
+        json.dump(role_assignment_json, f, ensure_ascii=False, indent=4)
+
+    # Form-event mappings
+    # fem = project.export_fem()
+
+    # Files - Would need to loop over subjects and fields and run
+    # project.export_file(record=, field=)
+
+    # Repeating instruments
+    # ---------------
+    try:
+        repeating_json = project.export_repeating_instruments_events(format_type='json')
+        repeating_out = output_dir.joinpath(f'{project_name}_repeating.json')
+        with open(repeating_out, 'w', encoding='utf-8') as f:
+            json.dump(repeating_json, f, ensure_ascii=False, indent=4)
+    except:
+        pass
 
 
 def details_to_dict(log_details):
