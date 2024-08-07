@@ -162,6 +162,12 @@ def get_form_df(project, patient_name, crf_name, instance):
     project.export_records() has a bug where if the first form of a project is a repeating form
     an extra row of data is added with residual when exporting from subsequent forms.
     This function removes the residual row if it exists
+
+    8/7/24 bug: If trying to get a empty repeating form, then doing export_record error handling, 
+                will be left with an empty dataframe which is lastly checked if all values are '', which
+                results in an error.
+                Workaround: call project_data_to_db again as crf will exist in CRF_RedCap from previous call,
+                which will prompt the logs to be used for data insertion instead of the api call from this function
     """
     form_df = pd.DataFrame(project.export_records(records=[patient_name], forms=[crf_name]))
     if project.export_project_info()['has_repeating_instruments_or_events']:
