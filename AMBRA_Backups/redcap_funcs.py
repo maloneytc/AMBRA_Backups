@@ -181,6 +181,8 @@ def get_form_df(project, patient_name, crf_name, instance):
     else:
         form_df = form_df.iloc[0].to_frame().T
 
+    if form_df.empty:
+        return pd.DataFrame({})
     if all(value == '' for value in form_df[form_df.columns[1:]].iloc[0]): 
         return pd.DataFrame({})
     return form_df
@@ -316,13 +318,14 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             else:
                 verified = 0
             deleted = 0
-            crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified, deleted) VALUES 
-                                            (%s, %s, {'NULL' if instance is None else instance}, %s, %s)""", [patient_id, crf_name, verified, deleted])
             
             
             form_df = get_form_df(project, patient_name, crf_name, instance)
             if form_df.empty: # if empty, means there is no live data for this patient and a deleted log should appear later
                 continue 
+            crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified, deleted) VALUES 
+                                            (%s, %s, {'NULL' if instance is None else instance}, %s, %s)""", [patient_id, crf_name, verified, deleted])
+            
             irr_cols = 3 if form_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
             form_df = form_df[form_df.columns[irr_cols:]]
             form_df = form_df.melt(var_name='redcap_variable')
