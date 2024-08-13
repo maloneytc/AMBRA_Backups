@@ -7,7 +7,7 @@ from itertools import chain
 import pdb
 
 import mysql.connector.errors as mysql_errors
-from ambra_sdk.exceptions.storage import NotFound, ImageNotFound, Unknown
+from ambra_sdk.exceptions.storage import NotFound, ImageNotFound, Unknown, StudyNotFound
 
 from AMBRA_Backups import utils
 from AMBRA_Utils import Api, utilities
@@ -232,6 +232,11 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
                         print(f'Could not find the series {this_series.series_uid}.')
                     else:
                         raise Exception(f'Could not find the series {this_series.series_uid}.')
+                except StudyNotFound:
+                    if ignore_series_exception:
+                        print(f'Could not find the series {this_series.series_uid}.')
+                    else:
+                        raise Exception(f'Could not find the series {this_series.series_uid}.')
                 except Unknown:
                     if ignore_series_exception:
                         print(f'Could not find the series {this_series.series_uid}.')
@@ -246,8 +251,8 @@ def update_database(database, namespace, custom_fields=None, custom_functions=No
                 raise(f'Error: Could not find the study {study.patient_name}: {study.uuid}.')
         except Exception as e:
             if ignore_study_exception:
-                print(f'Error inserting study into database: {e}')
+                print(f'Error inserting study into database: \n\tUID: {study.study_uid}\n\tError: {e}')
             else:
-                raise(Exception(f'Error inserting study into database: {e}'))
+                raise(Exception(f'Error inserting study into database: \n\tUID: {study.study_uid}\n\tError: {e}'))
 
     database.insert_update_datetime(namespace.name, namespace.namespace_type, namespace.namespace_id, namespace.uuid, current_backup)
