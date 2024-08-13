@@ -10,6 +10,7 @@ from redcap import Project
 import configparser
 import sys
 import json
+import numpy as np
 
 from AMBRA_Backups import utils
 
@@ -96,6 +97,52 @@ def backup_project(project_name, url, api_key, output_dir):
             json.dump(repeating_json, f, ensure_ascii=False, indent=4)
     except:
         pass
+
+
+def get_project_schema(project_name, form):
+    """
+    returns a ready to insert dataframe of the schema of a redcap project into CRF_RedCap_Schema
+    """
+
+    # gathering 
+    project = AMBRA_Backups.redcap_funcs.get_redcap_project(project_name)
+    df = pd.DataFrame(project.export_metadata())
+    df = df[df['form_name'] == form]
+    field_names = pd.DataFrame(project.export_field_names())
+    field_names.rename(columns={'original_field_name': 'field_name'}, inplace=True)
+    df = pd.merge(field_names, df, on='field_name')
+
+    # replacing
+    def val_to_text(row):
+        if row['field_type'] == 'checkbox':
+            dic = {op.split(',')[0].strip() : op.split(',')[1].strip() for op in row['select_choices_or_calculations'].split('|')}
+            return dic[row['choice_value']]
+        else:
+            return row['select_choices_or_calculations']
+    df['select_choices_or_calculations'] = df.apply(val_to_text, axis=1)
+
+    def replace_seperators(row):
+        if row['field_type'] == 'radio':
+            return row['select_choices_or_calculations'].replace(',', '=')
+        else:
+            return row['select_choices_or_calculations']
+    df['select_choices_or_calculations'] = df.apply(replace_seperators, axis=1)
+
+    df.loc[(df['field_type'] == 'checkbox') | 
+                    (df['field_type'] == 'radio') | 
+                    (df['field_type'] == 'yesno'), 'data_type'] = 'int'
+    df.loc[df['field_type'] == 'text', 'data_type'] = 'string'
+
+    df.loc[df['export_field_name'].str.contains('___'), 'export_field_name'] = df['export_field_name']+')'
+    df.loc[df['export_field_name'].str.contains('___'), 'export_field_name'] = df['export_field_name'].str.replace('___', '(')
+    df['redcap_variable'] = df['export_field_name']
+
+    # truncating and renaming
+    df = df[['form_name', 'export_field_name', 'field_label', 'select_choices_or_calculations', 'field_type', 'data_type']]
+    df.rename(columns={'form_name': 'crf_name', 'export_field_name': 'data_id', 'select_choices_or_calculations': 'data_labels', 'field_label': 'question_text', 'field_type' : 'question_type'}, inplace=True)
+    df.replace({'': None, np.nan: None}, inplace=True)
+    return df
+
 
 
 def details_to_dict(log_details):
