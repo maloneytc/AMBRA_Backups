@@ -37,6 +37,17 @@ def get_redcap_project(proj_name, config_path=None):
 
 def backup_project(project_name, url, api_key, output_dir):
     """
+    Backup a REDCap project by exporting project information, metadata, records, users, roles, role assignments,
+    files, and repeating instruments to specified output directory.
+
+    Args:
+        project_name (str): The name of the REDCap project.
+        url (str): The URL of the REDCap project.
+        api_key (str): The API key for accessing the REDCap project.
+        output_dir (Path): The directory where the backup files will be saved.
+
+    Returns:
+        None
     """
     project = Project(url, api_key)
     
