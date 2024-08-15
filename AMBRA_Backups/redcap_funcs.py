@@ -85,8 +85,26 @@ def backup_project(project_name, url, api_key, output_dir):
     # Form-event mappings
     # fem = project.export_fem()
 
-    # Files - Would need to loop over subjects and fields and run
-    # project.export_file(record=, field=)
+    # Files 
+    # ---------------
+    files_dir = output_dir.joinpath(f'{project_name}_Files')
+    if not files_dir.exists():
+        files_dir.mkdir()
+
+    meta_df = pd.DataFrame(meta_json)
+    
+    # Find fields containing files
+    files = meta_df[meta_df['field_type']=='file']
+
+    for file_field_name in files['field_name'].values:
+        these_records = project.export_records(fields=['test_file'])
+        for record in these_records:
+            if record[file_field_name] != '':
+                content, headers = project.export_file(record['record_id'], file_field_name, record['redcap_event_name'], record['redcap_repeat_instrument'])
+                file_path =files_dir.joinpath(headers['name'])
+                with open(file_path, 'wb') as fobj:
+                    fobj.write(content)
+    
 
     # Repeating instruments
     # ---------------
