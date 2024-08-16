@@ -108,7 +108,7 @@ def backup_project(project_name, url, api_key, output_dir):
     files = meta_df[meta_df['field_type']=='file']
 
     for file_field_name in files['field_name'].values:
-        these_records = project.export_records(fields=['test_file'])
+        these_records = project.export_records(fields=[file_field_name])
         for record in these_records:
             if record[file_field_name] != '':
                 content, headers = project.export_file(record['record_id'], file_field_name, record['redcap_event_name'], record['redcap_repeat_instrument'])
