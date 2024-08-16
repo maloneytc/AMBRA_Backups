@@ -35,7 +35,7 @@ def get_redcap_project(proj_name, config_path=None):
     return Project('https://redcap.research.cchmc.org/api/', proj_config['token'])
 
 
-def backup_project(project_name, url, api_key, output_dir):
+def backup_project(project_name, url, api_key, output_dir, bckp_files=True):
     """
     Backup a REDCap project by exporting project information, metadata, records, users, roles, role assignments,
     files, and repeating instruments to specified output directory.
@@ -45,6 +45,7 @@ def backup_project(project_name, url, api_key, output_dir):
         url (str): The URL of the REDCap project.
         api_key (str): The API key for accessing the REDCap project.
         output_dir (Path): The directory where the backup files will be saved.
+        bckp_files (bool): If true, will download attached files.
 
     Returns:
         None
@@ -98,23 +99,28 @@ def backup_project(project_name, url, api_key, output_dir):
 
     # Files 
     # ---------------
-    files_dir = output_dir.joinpath(f'{project_name}_Files')
-    if not files_dir.exists():
-        files_dir.mkdir()
+    if bckp_files:
+        files_dir = output_dir.joinpath(f'{project_name}_Files')
+        if not files_dir.exists():
+            files_dir.mkdir()
 
-    meta_df = pd.DataFrame(meta_json)
-    
-    # Find fields containing files
-    files = meta_df[meta_df['field_type']=='file']
+        meta_df = pd.DataFrame(meta_json)
+        
+        # Find fields containing files
+        files = meta_df[meta_df['field_type']=='file']
 
-    for file_field_name in files['field_name'].values:
-        these_records = project.export_records(fields=[file_field_name])
-        for record in these_records:
-            if record[file_field_name] != '':
-                content, headers = project.export_file(record['record_id'], file_field_name, record['redcap_event_name'], record['redcap_repeat_instrument'])
-                file_path =files_dir.joinpath(headers['name'])
-                with open(file_path, 'wb') as fobj:
-                    fobj.write(content)
+        for file_field_name in files['field_name'].values:
+            these_records = project.export_records(fields=[file_field_name])
+            for record in these_records:
+                if record[file_field_name] != '':
+                    content, headers = project.export_file(record['record_id'], 
+                                                           file_field_name, 
+                                                           event=record.get('redcap_event_name'), 
+                                                           repeat_instance=record.get('redcap_repeat_instrument'))
+                    file_path =files_dir.joinpath(f"{record['record_id']} - {headers['name']}")
+                    if not file_path.exists():
+                        with open(file_path, 'wb') as fobj:
+                            fobj.write(content)
     
 
     # Repeating instruments
