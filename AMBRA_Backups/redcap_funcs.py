@@ -105,7 +105,7 @@ def get_project_schema(project_name, form):
     """
 
     # gathering 
-    project = AMBRA_Backups.redcap_funcs.get_redcap_project(project_name)
+    project = get_redcap_project(project_name)
     df = pd.DataFrame(project.export_metadata())
     df = df[df['form_name'] == form]
     field_names = pd.DataFrame(project.export_field_names())
