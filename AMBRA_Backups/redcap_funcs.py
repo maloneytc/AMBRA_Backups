@@ -172,8 +172,22 @@ def get_project_schema(project_name, form):
     df.loc[df['export_field_name'].str.contains('___'), 'export_field_name'] = df['export_field_name'].str.replace('___', '(')
     df['redcap_variable'] = df['export_field_name']
 
+    df['question_order'] = df['export_field_name'].str.extract(r'(\d+)')
+    def apply_decimals(group):
+        i = 0
+        for idx, row in group.iterrows():
+            group.at[idx, 'question_order'] = row['question_order']+f".{(i+1):02}"
+            i+=1
+        return group
+    df.loc[(df['field_type'] == 'checkbox') &
+           (df['redcap_variable'].str.startswith('q')), 'question_order'] = (df[(df['field_type'] == 'checkbox') & 
+                                                                          (df['redcap_variable'].str.startswith('q'))]
+                                                                          .groupby('question_order')
+                                                                          .apply(apply_decimals)
+                                                                          .reset_index(level=0, drop=True)['question_order'])
+
     # truncating and renaming
-    df = df[['form_name', 'redcap_variable', 'export_field_name', 'field_label', 'select_choices_or_calculations', 'field_type', 'data_type']]
+    df = df[['form_name', 'redcap_variable', 'export_field_name', 'field_label', 'select_choices_or_calculations', 'field_type', 'data_type', 'question_order']]
     df.rename(columns={'form_name': 'crf_name', 'export_field_name': 'data_id', 'select_choices_or_calculations': 'data_labels', 'field_label': 'question_text', 'field_type' : 'question_type'}, inplace=True)
     df.replace({'': None, np.nan: None}, inplace=True)
     return df
