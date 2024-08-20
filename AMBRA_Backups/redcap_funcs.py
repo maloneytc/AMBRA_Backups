@@ -172,6 +172,7 @@ def get_project_schema(project_name, form):
     df.loc[df['export_field_name'].str.contains('___'), 'export_field_name'] = df['export_field_name'].str.replace('___', '(')
     df['redcap_variable'] = df['export_field_name']
 
+    # This question_order functionality is only approximate. Should be double checked after schena insertion
     df['question_order'] = df['export_field_name'].str.extract(r'(\d+)')
     def apply_decimals(group):
         i = 0
