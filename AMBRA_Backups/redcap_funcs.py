@@ -13,6 +13,7 @@ import json
 import numpy as np
 
 from AMBRA_Backups import utils
+import AMBRA_Backups
 
 
 def get_config(config_path=None):
@@ -205,7 +206,7 @@ def comp_schema_cap_db(db_name, project_name, crf_name):
     """
 
     db = AMBRA_Backups.database.Database(db_name)
-    project = AMBRA_Backups.redcap_funcs.get_redcap_project(project_name)
+    project = get_redcap_project(project_name)
 
     # redcap_variable discrepancies
     unique_data_vars = pd.DataFrame(db.run_select_query("""SELECT DISTINCT(redcap_variable) 
@@ -262,24 +263,26 @@ def comp_schema_cap_db(db_name, project_name, crf_name):
 
     # radio button option discrepancies
     schema_radio_options = pd.DataFrame(db.run_select_query("""SELECT * FROM CRF_Schema_RedCap
-                                WHERE crf_name = %s AND question_type = 'radio'""", [crf_name], column_names=True))['data_labels']
-    def schema_rep_seps(string_ops):
-        return '|'.join([ss.split('=')[0].strip()+'='+'='.join(ss.split('=')[1:]).strip() for ss in string_ops.split('|')])
-    schema_radio_options = schema_radio_options.apply(schema_rep_seps)
-
-    api_radio_options = pd.DataFrame(project.metadata)
-    api_radio_options = api_radio_options[(api_radio_options['form_name'] == crf_name) & 
-                                        (api_radio_options['field_type'] == 'radio')][['field_name', 'select_choices_or_calculations']]
-
-    def api_rep_seps(string_ops):
-        return '|'.join([ss.split(',')[0].strip()+'='+','.join(ss.split(',')[1:]).strip() for ss in string_ops.split('|')])
-    api_radio_options['select_choices_or_calculations'] = api_radio_options['select_choices_or_calculations'].apply(api_rep_seps)
-
-    radio_discreps = api_radio_options[~api_radio_options['select_choices_or_calculations'].isin(schema_radio_options)]
+                                WHERE crf_name = %s AND question_type = 'radio'""", [crf_name], column_names=True))
     radio_discrep_string = ''
-    if not radio_discreps.empty:
-        discrep_dict = {v[0]:v[1] for v in radio_discreps.values}
-        radio_discrep_string = f"\nThe following api-metadata radio button options's are not in CRF_Schema_RedCap.data_labels's(radio button options):\n{{redcap_variable : select_choices_or_calculations}}\n\n{discrep_dict}\n\n"
+    if not schema_radio_options.empty:
+        schema_radio_options = schema_radio_options['data_labels']
+        def schema_rep_seps(string_ops):
+            return '|'.join([ss.split('=')[0].strip()+'='+'='.join(ss.split('=')[1:]).strip() for ss in string_ops.split('|')])
+        schema_radio_options = schema_radio_options.apply(schema_rep_seps)
+
+        api_radio_options = pd.DataFrame(project.metadata)
+        api_radio_options = api_radio_options[(api_radio_options['form_name'] == crf_name) & 
+                                            (api_radio_options['field_type'] == 'radio')][['field_name', 'select_choices_or_calculations']]
+
+        def api_rep_seps(string_ops):
+            return '|'.join([ss.split(',')[0].strip()+'='+','.join(ss.split(',')[1:]).strip() for ss in string_ops.split('|')])
+        api_radio_options['select_choices_or_calculations'] = api_radio_options['select_choices_or_calculations'].apply(api_rep_seps)
+
+        radio_discreps = api_radio_options[~api_radio_options['select_choices_or_calculations'].isin(schema_radio_options)]
+        if not radio_discreps.empty:
+            discrep_dict = {v[0]:v[1] for v in radio_discreps.values}
+            radio_discrep_string = f"\nThe following api-metadata radio button options's are not in CRF_Schema_RedCap.data_labels's(radio button options):\n{{redcap_variable : select_choices_or_calculations}}\n\n{discrep_dict}\n\n"
 
     # print('radio button options')
     # print('schema_radio_options')
@@ -614,9 +617,9 @@ if __name__ == '__main__':
     # manual backup
     # start_date = datetime(2023, 1, 1)
     # db.run_insert_query("""UPDATE backup_info_RedCap SET last_backup = %s""", [start_date])
-    start_date = datetime(2020, 7, 9, 11, 30)
+    # start_date = datetime(2020, 7, 9, 11, 30)
     # end_date = datetime(2024, 7, 1, 13, 41)
-    project_data_to_db(db, project, start_date)
+    # project_data_to_db(db, project, start_date)
 
 
     # inserting logs only for select patient
