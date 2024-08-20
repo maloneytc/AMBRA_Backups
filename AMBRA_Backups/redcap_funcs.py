@@ -211,7 +211,7 @@ def comp_schema_cap_db(db_name, project_name):
     forms = [f['instrument_name'] for f in project.export_instruments()]
 
 
-    master_discreps = {}
+    master_discreps = ''
 
     for crf_name in forms:
 
@@ -290,7 +290,7 @@ def comp_schema_cap_db(db_name, project_name):
             radio_discreps = api_radio_options[~api_radio_options['select_choices_or_calculations'].isin(schema_radio_options)]
             if not radio_discreps.empty:
                 discrep_dict = {v[0]:v[1] for v in radio_discreps.values}
-                radio_discrep_string = f"\nThe following api-metadata radio button options's are not in CRF_Schema_RedCap.data_labels's(radio button options):\n{{redcap_variable : select_choices_or_calculations}}\n\n{discrep_dict}\n\n"
+                radio_discrep_string = f"The following api-metadata radio button options's are not in CRF_Schema_RedCap.data_labels's(radio button options):\n{{redcap_variable : select_choices_or_calculations}}\n\n{discrep_dict}\n"
 
         # print('radio button options')
         # print('schema_radio_options')
@@ -299,13 +299,13 @@ def comp_schema_cap_db(db_name, project_name):
         # display(api_radio_options.reset_index()
 
         form_discrepancies = var_discrep_string + ques_discrep_string + radio_discrep_string
-        master_discreps[crf_name] = form_discrepancies
+        master_discreps += f'\n{crf_name:-^{40}}\n{form_discrepancies}'
 
 
     if master_discreps:
         class KeyErrorMessage(str): 
             def __repr__(self): return str(self)
-        msg = KeyErrorMessage(master_discreps.__str__())
+        msg = KeyErrorMessage(master_discreps)
         raise KeyError(msg)
 
 
