@@ -173,7 +173,7 @@ def get_project_schema(project_name, form):
     df['redcap_variable'] = df['export_field_name']
 
     # truncating and renaming
-    df = df[['form_name', 'export_field_name', 'field_label', 'select_choices_or_calculations', 'field_type', 'data_type']]
+    df = df[['form_name', 'redcap_variable', 'export_field_name', 'field_label', 'select_choices_or_calculations', 'field_type', 'data_type']]
     df.rename(columns={'form_name': 'crf_name', 'export_field_name': 'data_id', 'select_choices_or_calculations': 'data_labels', 'field_label': 'question_text', 'field_type' : 'question_type'}, inplace=True)
     df.replace({'': None, np.nan: None}, inplace=True)
     return df
