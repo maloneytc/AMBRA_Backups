@@ -229,7 +229,9 @@ def comp_schema_cap_db(db_name, project_name):
 
             var_discreps = unique_data_vars[~unique_data_vars.isin(schema_vars)].to_list()
             if var_discreps:
-                var_discrep_string = f"\nThe following CRF_Schema_RedCap.redcap_variable's are not in unique CRF_Data_RedCap.redcap_variable's:\n{var_discreps}\n\n"
+                # redcap_variables inside the data table might not have a schema variable to coorispond to, but might have an active crf_id
+                # So the non-included redcap_variable will be attached to a csv report if not taken out of the data table, or have the schema corrected. Case by case 
+                var_discrep_string = f"\nThe following CRF_Data_RedCap.redcap_variable's are not in CRF_schema_RedCap.redcap_variable's:\n{var_discreps}\n\n"
 
         # print('redcap_variables')
         # print('CRF_Data_RedCap')
@@ -303,7 +305,11 @@ def comp_schema_cap_db(db_name, project_name):
 
 
     if master_discreps:
+        print('====================================================================')
+        print('====================================================================')
         print(master_discreps)
+        print('====================================================================')
+        print('====================================================================')
         raise Exception('Please handle the above discrepancies')
 
 
