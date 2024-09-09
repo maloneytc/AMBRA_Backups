@@ -303,10 +303,8 @@ def comp_schema_cap_db(db_name, project_name):
 
 
     if master_discreps:
-        class KeyErrorMessage(str): 
-            def __repr__(self): return str(self)
-        msg = KeyErrorMessage(master_discreps)
-        raise KeyError(msg)
+        print(master_discreps)
+        raise Exception('Please handle the above discrepancies')
 
 
 def details_to_dict(log_details):
