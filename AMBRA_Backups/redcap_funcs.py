@@ -13,7 +13,7 @@ import json
 import numpy as np
 
 from AMBRA_Backups import utils
-
+from AMBRA_Backups.Database import database
 
 def get_config(config_path=None):
     if config_path:
@@ -189,8 +189,8 @@ def comp_schema_cap_db(db_name, project_name, crf_name):
     of a dag making a report depending on the db schema(right now just csv reports 8/19/24)
     """
 
-    db = AMBRA_Backups.database.Database(db_name)
-    project = AMBRA_Backups.redcap_funcs.get_redcap_project(project_name)
+    db = database.Database(db_name)
+    project = get_redcap_project(project_name)
 
     # redcap_variable discrepancies
     unique_data_vars = pd.DataFrame(db.run_select_query("""SELECT DISTINCT(redcap_variable) 
