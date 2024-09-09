@@ -13,7 +13,8 @@ import json
 import numpy as np
 
 from AMBRA_Backups import utils
-from AMBRA_Backups.Database import database
+import AMBRA_Backups
+
 
 def get_config(config_path=None):
     if config_path:
@@ -204,85 +205,92 @@ def comp_schema_cap_db(db_name, project_name):
     of a dag making a report depending on the db schema(right now just csv reports 8/19/24)
     """
 
-    db = database.Database(db_name)
+    db = AMBRA_Backups.database.Database(db_name)
     project = get_redcap_project(project_name)
 
-    # redcap_variable discrepancies
-    unique_data_vars = pd.DataFrame(db.run_select_query("""SELECT DISTINCT(redcap_variable) 
-        FROM CRF_RedCap
-        JOIN CRF_Data_RedCap
-            ON CRF_RedCap.id = CRF_Data_RedCap.id_crf
-        WHERE crf_name = %s""", [crf_name], column_names=True))
-    var_discrep_string = ''
-    if not unique_data_vars.empty:
-        unique_data_vars = unique_data_vars['redcap_variable']
-        schema_vars = pd.DataFrame(db.run_select_query("""SELECT redcap_variable FROM CRF_Schema_RedCap
-            WHERE crf_name = %s""", [crf_name], column_names=True))['redcap_variable']
-
-        var_discreps = unique_data_vars[~unique_data_vars.isin(schema_vars)].to_list()
-        if var_discreps:
-            var_discrep_string = f"\nThe following CRF_Schema_RedCap.redcap_variable's are not in unique CRF_Data_RedCap.redcap_variable's:\n{var_discreps}\n\n"
-
-    # print('redcap_variables')
-    # print('CRF_Data_RedCap')
-    # display(unique_data_vars)
-    # print('CRF_Schema_RedCap')
-    # display(schema_vars)
+    forms = [f['instrument_name'] for f in project.export_instruments()]
 
 
+    master_discreps = ''
 
-    # question text discrepancies
-    schema_questions = pd.DataFrame(db.run_select_query("""SELECT DISTINCT(question_text) FROM CRF_Schema_RedCap
-                            WHERE crf_name = %s AND question_text IS NOT NULL""", [crf_name], column_names=True))['question_text']
+    for crf_name in forms:
 
-    api_questions = pd.DataFrame(project.metadata)
-    def only_html(row):
-        soup = BeautifulSoup(row['field_label'], 'html.parser')
-        if bool(soup.find()):
-            return row['field_label']
-    master_html = ''.join(api_questions.apply(only_html, axis=1).dropna().values.tolist())
+        # redcap_variable discrepancies
+        unique_data_vars = pd.DataFrame(db.run_select_query("""SELECT DISTINCT(redcap_variable) 
+            FROM CRF_RedCap
+            JOIN CRF_Data_RedCap
+                ON CRF_RedCap.id = CRF_Data_RedCap.id_crf
+            WHERE crf_name = %s""", [crf_name], column_names=True))
+        var_discrep_string = ''
+        if not unique_data_vars.empty:
+            unique_data_vars = unique_data_vars['redcap_variable']
+            schema_vars = pd.DataFrame(db.run_select_query("""SELECT redcap_variable FROM CRF_Schema_RedCap
+                WHERE crf_name = %s""", [crf_name], column_names=True))['redcap_variable']
 
+            var_discreps = unique_data_vars[~unique_data_vars.isin(schema_vars)].to_list()
+            if var_discreps:
+                var_discrep_string = f"\nThe following CRF_Schema_RedCap.redcap_variable's are not in unique CRF_Data_RedCap.redcap_variable's:\n{var_discreps}\n\n"
 
-    api_questions = api_questions[(api_questions['form_name'] == crf_name) &
-                                (api_questions['field_type'] != 'descriptive') &
-                                (~api_questions['field_name'].apply(lambda x: x in master_html))][['field_name','field_label']]
-    question_discreps = api_questions[~api_questions['field_label'].isin(schema_questions)]
-    ques_discrep_string = ''
-    if not question_discreps.empty:
-        discrep_dict = {v[0]:v[1] for v in question_discreps.values}
-        ques_discrep_string = f"\nThe following api-metadata question_text's are not in CRF_Schema_RedCap.question_text's:\n{{redcap_variable : question_text}}\n\n{discrep_dict}\n\n"  
-
-    # print('question_text')
-    # print('schema_questions')
-    # display(schema_questions)
-    # print('api_questions')
-    # display(api_questions.reset_index())
+        # print('redcap_variables')
+        # print('CRF_Data_RedCap')
+        # display(unique_data_vars)
+        # print('CRF_Schema_RedCap')
+        # display(schema_vars)
 
 
 
+        # question text discrepancies
+        schema_questions = pd.DataFrame(db.run_select_query("""SELECT DISTINCT(question_text) FROM CRF_Schema_RedCap
+                                WHERE crf_name = %s AND question_text IS NOT NULL""", [crf_name], column_names=True))['question_text']
 
-    # radio button option discrepancies
-    schema_radio_options = pd.DataFrame(db.run_select_query("""SELECT * FROM CRF_Schema_RedCap
-                                WHERE crf_name = %s AND question_type = 'radio'""", [crf_name], column_names=True))
-    radio_discrep_string = ''
-    if not schema_radio_options.empty:
-        schema_radio_options = schema_radio_options['data_labels']
-        def schema_rep_seps(string_ops):
-            return '|'.join([ss.split('=')[0].strip()+'='+'='.join(ss.split('=')[1:]).strip() for ss in string_ops.split('|')])
-        schema_radio_options = schema_radio_options.apply(schema_rep_seps)
+        api_questions = pd.DataFrame(project.metadata)
+        def only_html(row):
+            soup = BeautifulSoup(row['field_label'], 'html.parser')
+            if bool(soup.find()):
+                return row['field_label']
+        master_html = ''.join(api_questions.apply(only_html, axis=1).dropna().values.tolist())
 
-        api_radio_options = pd.DataFrame(project.metadata)
-        api_radio_options = api_radio_options[(api_radio_options['form_name'] == crf_name) & 
-                                            (api_radio_options['field_type'] == 'radio')][['field_name', 'select_choices_or_calculations']]
 
-        def api_rep_seps(string_ops):
-            return '|'.join([ss.split(',')[0].strip()+'='+','.join(ss.split(',')[1:]).strip() for ss in string_ops.split('|')])
-        api_radio_options['select_choices_or_calculations'] = api_radio_options['select_choices_or_calculations'].apply(api_rep_seps)
+        api_questions = api_questions[(api_questions['form_name'] == crf_name) &
+                                    (api_questions['field_type'] != 'descriptive') &
+                                    (~api_questions['field_name'].apply(lambda x: x in master_html))][['field_name','field_label']]
+        question_discreps = api_questions[~api_questions['field_label'].isin(schema_questions)]
+        ques_discrep_string = ''
+        if not question_discreps.empty:
+            discrep_dict = {v[0]:v[1] for v in question_discreps.values}
+            ques_discrep_string = f"\nThe following api-metadata question_text's are not in CRF_Schema_RedCap.question_text's:\n{{redcap_variable : question_text}}\n\n{discrep_dict}\n\n"  
 
-        radio_discreps = api_radio_options[~api_radio_options['select_choices_or_calculations'].isin(schema_radio_options)]
-        if not radio_discreps.empty:
-            discrep_dict = {v[0]:v[1] for v in radio_discreps.values}
-            radio_discrep_string = f"The following api-metadata radio button options's are not in CRF_Schema_RedCap.data_labels's(radio button options):\n{{redcap_variable : select_choices_or_calculations}}\n\n{discrep_dict}\n"
+        # print('question_text')
+        # print('schema_questions')
+        # display(schema_questions)
+        # print('api_questions')
+        # display(api_questions.reset_index())
+
+
+
+
+        # radio button option discrepancies
+        schema_radio_options = pd.DataFrame(db.run_select_query("""SELECT * FROM CRF_Schema_RedCap
+                                    WHERE crf_name = %s AND question_type = 'radio'""", [crf_name], column_names=True))
+        radio_discrep_string = ''
+        if not schema_radio_options.empty:
+            schema_radio_options = schema_radio_options['data_labels']
+            def schema_rep_seps(string_ops):
+                return '|'.join([ss.split('=')[0].strip()+'='+'='.join(ss.split('=')[1:]).strip() for ss in string_ops.split('|')])
+            schema_radio_options = schema_radio_options.apply(schema_rep_seps)
+
+            api_radio_options = pd.DataFrame(project.metadata)
+            api_radio_options = api_radio_options[(api_radio_options['form_name'] == crf_name) & 
+                                                (api_radio_options['field_type'] == 'radio')][['field_name', 'select_choices_or_calculations']]
+
+            def api_rep_seps(string_ops):
+                return '|'.join([ss.split(',')[0].strip()+'='+','.join(ss.split(',')[1:]).strip() for ss in string_ops.split('|')])
+            api_radio_options['select_choices_or_calculations'] = api_radio_options['select_choices_or_calculations'].apply(api_rep_seps)
+
+            radio_discreps = api_radio_options[~api_radio_options['select_choices_or_calculations'].isin(schema_radio_options)]
+            if not radio_discreps.empty:
+                discrep_dict = {v[0]:v[1] for v in radio_discreps.values}
+                radio_discrep_string = f"The following api-metadata radio button options's are not in CRF_Schema_RedCap.data_labels's(radio button options):\n{{redcap_variable : select_choices_or_calculations}}\n\n{discrep_dict}\n"
 
         # print('radio button options')
         # print('schema_radio_options')
