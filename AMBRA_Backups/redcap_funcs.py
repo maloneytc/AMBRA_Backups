@@ -242,21 +242,54 @@ def comp_schema_cap_db(db_name, project_name):
 
 
         # question text discrepancies
-        schema_questions = pd.DataFrame(db.run_select_query("""SELECT DISTINCT(question_text) FROM CRF_Schema_RedCap
-                                WHERE crf_name = %s AND question_text IS NOT NULL""", [crf_name], column_names=True))['question_text']
+        schema_questions = pd.DataFrame(db.run_select_query("""SELECT question_text, redcap_variable FROM CRF_Schema_RedCap
+                                        WHERE crf_name = %s AND question_text IS NOT NULL""", [crf_name], column_names=True))
+        schema_questions['variable-value'] = schema_questions['redcap_variable']+schema_questions['question_text']
 
-        api_questions = pd.DataFrame(project.metadata)
+        api_questions = pd.DataFrame(project.export_metadata())
+        api_questions = api_questions[api_questions['form_name'] == crf_name]
+        field_names = pd.DataFrame(project.export_field_names())
+        field_names.rename(columns={'original_field_name': 'field_name'}, inplace=True)
+        # api_questions = pd.merge(field_names, api_questions, on='field_name')
+        api_questions = pd.merge(api_questions, field_names, on='field_name', how='left')
+
+        # replacing
+        def val_to_text(row):
+            if row['field_type'] == 'checkbox':
+                dic = {op.split(',')[0].strip() : op.split(',')[1].strip() for op in row['select_choices_or_calculations'].split('|')}
+                return dic[row['choice_value']]
+            else:
+                return row['select_choices_or_calculations']
+        api_questions['select_choices_or_calculations'] = api_questions.apply(val_to_text, axis=1)
+
+        def replace_seperators(row):
+            if row['field_type'] == 'radio':
+                return row['select_choices_or_calculations'].replace(',', '=')
+            else:
+                return row['select_choices_or_calculations']
+        api_questions['select_choices_or_calculations'] = api_questions.apply(replace_seperators, axis=1)
+
+        api_questions.loc[(api_questions['field_type'] == 'checkbox') | 
+                        (api_questions['field_type'] == 'radio') | 
+                        (api_questions['field_type'] == 'yesno'), 'data_type'] = 'int'
+        api_questions.loc[api_questions['field_type'] == 'text', 'data_type'] = 'string'
+
+        api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 'export_field_name'] = api_questions['export_field_name']+')'
+        api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 'export_field_name'] = api_questions['export_field_name'].str.replace('___', '(')
+        api_questions['redcap_variable'] = api_questions['export_field_name']
+        api_questions
+
         def only_html(row):
             soup = BeautifulSoup(row['field_label'], 'html.parser')
             if bool(soup.find()):
                 return row['field_label']
         master_html = ''.join(api_questions.apply(only_html, axis=1).dropna().values.tolist())
+        api_questions = api_questions[(api_questions['field_type'] != 'descriptive') &
+                                      ~(api_questions['field_label'].str.contains('record', case=False)) &
+                                    (~api_questions['field_name'].apply(lambda x: x in master_html))][['redcap_variable','field_label']]
+        api_questions['variable-value'] = api_questions['redcap_variable']+api_questions['field_label']
 
-
-        api_questions = api_questions[(api_questions['form_name'] == crf_name) &
-                                    (api_questions['field_type'] != 'descriptive') &
-                                    (~api_questions['field_name'].apply(lambda x: x in master_html))][['field_name','field_label']]
-        question_discreps = api_questions[~api_questions['field_label'].isin(schema_questions)]
+        question_discreps = api_questions[~api_questions['variable-value'].isin(schema_questions['variable-value'])]
         ques_discrep_string = ''
         if not question_discreps.empty:
             discrep_dict = {v[0]:v[1] for v in question_discreps.values}
@@ -267,8 +300,6 @@ def comp_schema_cap_db(db_name, project_name):
         # display(schema_questions)
         # print('api_questions')
         # display(api_questions.reset_index())
-
-
 
 
         # radio button option discrepancies
@@ -301,7 +332,8 @@ def comp_schema_cap_db(db_name, project_name):
         # display(api_radio_options.reset_index()
 
         form_discrepancies = var_discrep_string + ques_discrep_string + radio_discrep_string
-        master_discreps += f'\n{crf_name:-^{40}}\n{form_discrepancies}'
+        if form_discrepancies:
+            master_discreps += f'\n{crf_name:-^{40}}\n{form_discrepancies}'
 
 
     if master_discreps:
