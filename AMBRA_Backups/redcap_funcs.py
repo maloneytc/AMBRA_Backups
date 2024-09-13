@@ -185,8 +185,7 @@ def get_project_schema(project_name, form):
            (df['redcap_variable'].str.startswith('q')), 'question_order'] = (df[(df['field_type'] == 'checkbox') & 
                                                                           (df['redcap_variable'].str.startswith('q'))]
                                                                           .groupby('question_order')
-                                                                          .apply(apply_decimals)
-                                                                          .reset_index(level=0, drop=True)['question_order'])
+                                                                          .apply(apply_decimals)['question_order'])
 
     # truncating and renaming
     df = df[['form_name', 'redcap_variable', 'export_field_name', 'field_label', 'select_choices_or_calculations', 'field_type', 'data_type', 'question_order']]
