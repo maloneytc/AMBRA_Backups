@@ -169,8 +169,8 @@ def get_project_schema(project_name, form):
                     (df['field_type'] == 'yesno'), 'data_type'] = 'int'
     df.loc[df['field_type'] == 'text', 'data_type'] = 'string'
 
-    df.loc[df['export_field_name'].str.contains('___'), 'export_field_name'] = df['export_field_name']+')'
-    df.loc[df['export_field_name'].str.contains('___'), 'export_field_name'] = df['export_field_name'].str.replace('___', '(')
+    df.loc[df['export_field_name'].str.contains('___', na=False), 'export_field_name'] = df['export_field_name'].apply(lambda x: 
+                                                                                                            x.split('___')[0] if isinstance(x, str) else x)+'('+df['choice_value']+')'
     df['redcap_variable'] = df['export_field_name']
 
     # This question_order functionality is only approximate. Should be double checked after schena insertion
