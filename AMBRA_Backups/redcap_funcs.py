@@ -273,8 +273,8 @@ def comp_schema_cap_db(db_name, project_name):
                         (api_questions['field_type'] == 'yesno'), 'data_type'] = 'int'
         api_questions.loc[api_questions['field_type'] == 'text', 'data_type'] = 'string'
 
-        api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 'export_field_name'] = api_questions['export_field_name']+')'
-        api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 'export_field_name'] = api_questions['export_field_name'].str.replace('___', '(')
+        api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 'export_field_name'] = api_questions['export_field_name'].apply(lambda x: 
+                                                                                                            x.split('___')[0] if isinstance(x, str) else x)+'('+api_questions['choice_value']+')'
         api_questions['redcap_variable'] = api_questions['export_field_name']
         api_questions
 
