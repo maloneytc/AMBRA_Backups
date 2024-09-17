@@ -536,11 +536,15 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                                             (%s, %s, {'NULL' if instance is None else instance}, %s, %s)""", [patient_id, crf_name, verified, deleted])
             
             irr_cols = 3 if form_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
+            field_names = pd.DataFrame(project.export_field_names())
+            field_names.rename(columns={'export_field_name': 'redcap_variable'}, inplace=True)
             form_df = form_df[form_df.columns[irr_cols:]]
             form_df = form_df.melt(var_name='redcap_variable')
-            form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable']+')'
-            form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable'].str.replace('___', '(')
+            form_df = pd.merge(field_names, form_df, on='redcap_variable')
+            form_df.loc[form_df['redcap_variable'].str.contains('___', na=False), 'redcap_variable'] = form_df['redcap_variable'].apply(lambda x: 
+                                                                                                                        x.split('___')[0] if isinstance(x, str) else x)+'('+form_df['choice_value']+')'
             form_df['id_crf'] = crf_id
+            form_df = form_df[['redcap_variable', 'value', 'id_crf']]
 
             # inserting data
             utils.df_to_db_table(db, form_df, 'CRF_Data_RedCap')
