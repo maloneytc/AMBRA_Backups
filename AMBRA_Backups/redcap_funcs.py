@@ -169,8 +169,8 @@ def get_project_schema(project_name, form):
                     (df['field_type'] == 'yesno'), 'data_type'] = 'int'
     df.loc[df['field_type'] == 'text', 'data_type'] = 'string'
 
-    df.loc[df['export_field_name'].str.contains('___', na=False), 'export_field_name'] = df['export_field_name'].apply(lambda x: 
-                                                                                                            x.split('___')[0] if isinstance(x, str) else x)+'('+df['choice_value']+')'
+    df.loc[df['export_field_name'].str.contains('___'), 'export_field_name'] = df['export_field_name']+')'
+    df.loc[df['export_field_name'].str.contains('___'), 'export_field_name'] = df['export_field_name'].str.replace('___', '(')
     df['redcap_variable'] = df['export_field_name']
 
     # This question_order functionality is only approximate. Should be double checked after schena insertion
@@ -185,7 +185,8 @@ def get_project_schema(project_name, form):
            (df['redcap_variable'].str.startswith('q')), 'question_order'] = (df[(df['field_type'] == 'checkbox') & 
                                                                           (df['redcap_variable'].str.startswith('q'))]
                                                                           .groupby('question_order')
-                                                                          .apply(apply_decimals)['question_order'])
+                                                                          .apply(apply_decimals)
+                                                                          .reset_index(level=0, drop=True)['question_order'])
 
     # truncating and renaming
     df = df[['form_name', 'redcap_variable', 'export_field_name', 'field_label', 'select_choices_or_calculations', 'field_type', 'data_type', 'question_order']]
