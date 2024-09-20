@@ -249,34 +249,11 @@ def comp_schema_cap_db(db_name, project_name):
         api_questions = api_questions[api_questions['form_name'] == crf_name]
         field_names = pd.DataFrame(project.export_field_names())
         field_names.rename(columns={'original_field_name': 'field_name'}, inplace=True)
-        # api_questions = pd.merge(field_names, api_questions, on='field_name')
         api_questions = pd.merge(api_questions, field_names, on='field_name', how='left')
-
-        # replacing
-        def val_to_text(row):
-            if row['field_type'] == 'checkbox':
-                dic = {op.split(',')[0].strip() : op.split(',')[1].strip() for op in row['select_choices_or_calculations'].split('|')}
-                return dic[row['choice_value']]
-            else:
-                return row['select_choices_or_calculations']
-        api_questions['select_choices_or_calculations'] = api_questions.apply(val_to_text, axis=1)
-
-        def replace_seperators(row):
-            if row['field_type'] == 'radio':
-                return row['select_choices_or_calculations'].replace(',', '=')
-            else:
-                return row['select_choices_or_calculations']
-        api_questions['select_choices_or_calculations'] = api_questions.apply(replace_seperators, axis=1)
-
-        api_questions.loc[(api_questions['field_type'] == 'checkbox') | 
-                        (api_questions['field_type'] == 'radio') | 
-                        (api_questions['field_type'] == 'yesno'), 'data_type'] = 'int'
-        api_questions.loc[api_questions['field_type'] == 'text', 'data_type'] = 'string'
-
-        api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 'export_field_name'] = api_questions['export_field_name'].apply(lambda x: 
-                                                                                                            x.split('___')[0] if isinstance(x, str) else x)+'('+api_questions['choice_value']+')'
+        api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 
+                          'export_field_name'] = api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 
+                                                                   'export_field_name'].apply(lambda x: x.split('___')[0]+'('+x.split('___')[1]+')')
         api_questions['redcap_variable'] = api_questions['export_field_name']
-        api_questions
 
         def only_html(row):
             soup = BeautifulSoup(row['field_label'], 'html.parser')
