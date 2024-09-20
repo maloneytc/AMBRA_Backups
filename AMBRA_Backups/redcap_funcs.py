@@ -366,34 +366,24 @@ def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
     return logs
 
 
-def get_form_df(project, patient_name, crf_name, instance):
+def export_records_wrapper(patient_name, crf_name, instance=None):
     """
-    project.export_records() has a bug where if the first form of a project is a repeating form
-    an extra row of data is added with residual when exporting from subsequent forms.
-    This function removes the residual row if it exists
+    wrapper is necessary because of a export_record bug. If a repeating instance form is 
+    the first form in the project, a residual row is returned for other forms. This function excludes
+    that residual.
+    Also included an instance parameter 
+    """
 
-    8/7/24 bug: If trying to get a empty repeating form, then doing export_record error handling, 
-                will be left with an empty dataframe which is lastly checked if all values are '', which
-                results in an error.
-                Workaround: call project_data_to_db again as crf will exist in CRF_RedCap from previous call,
-                which will prompt the logs to be used for data insertion instead of the api call from this function
-    """
     form_df = pd.DataFrame(project.export_records(records=[patient_name], forms=[crf_name]))
-    if form_df.empty:
-        return pd.DataFrame({})
-    if project.export_project_info()['has_repeating_instruments_or_events']:
-        repeating_forms = [f['form_name'] for f in project.export_repeating_instruments_events()]
-        if crf_name in repeating_forms:
-            form_df = form_df.loc[(form_df['redcap_repeat_instrument'] == crf_name) & (form_df['redcap_repeat_instance'] == instance)]
-        else:
-            form_df = form_df.iloc[0].to_frame().T
-    else:
-        form_df = form_df.iloc[0].to_frame().T
-
-    if form_df.empty:
-        return pd.DataFrame({})
-    if all(value == '' for value in form_df[form_df.columns[1:]].iloc[0]): 
-        return pd.DataFrame({})
+    form_df = form_df[form_df[crf_name+'_complete'] != '']
+    if instance:
+        if 'redcap_repeat_instrument' not in form_df.columns:
+            raise ValueError(f'''Project '{project.export_project_info()['project_title']}' does not have repeat instances.
+                               \npatient_name: {patient_name}, crf_name: {crf_name}''')
+        if instance not in form_df['redcap_repeat_instance'].to_list():
+            raise ValueError(f'''Instance: {instance} not of available instances: {form_df['redcap_repeat_instance'].to_list()}
+                               \nIn project: {project.export_project_info()['project_title']}, crf_name: {crf_name}, patient_name: {patient_name}''') 
+        form_df = form_df[form_df['redcap_repeat_instance'] == instance]
     return form_df
 
 
