@@ -303,8 +303,10 @@ def comp_schema_cap_db(db_name, project_name):
 
 
     if master_discreps:
-        print(master_discreps)
-        raise Exception('Please handle the above discrepancies')
+        class KeyErrorMessage(str): 
+            def __repr__(self): return str(self)
+        msg = KeyErrorMessage(master_discreps)
+        raise KeyError(msg)
 
 
 def details_to_dict(log_details):
@@ -366,26 +368,34 @@ def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
     return logs
 
 
-def export_records_wrapper(project, patient_name, crf_name, instance=None):
+def get_form_df(project, patient_name, crf_name, instance):
     """
-    wrapper is necessary because of a export_record bug. If a repeating instance form is 
-    the first form in the project, a residual row is returned for other forms. This function excludes
-    that residual.
-    Also included an instance parameter 
-    """
+    project.export_records() has a bug where if the first form of a project is a repeating form
+    an extra row of data is added with residual when exporting from subsequent forms.
+    This function removes the residual row if it exists
 
+    8/7/24 bug: If trying to get a empty repeating form, then doing export_record error handling, 
+                will be left with an empty dataframe which is lastly checked if all values are '', which
+                results in an error.
+                Workaround: call project_data_to_db again as crf will exist in CRF_RedCap from previous call,
+                which will prompt the logs to be used for data insertion instead of the api call from this function
+    """
     form_df = pd.DataFrame(project.export_records(records=[patient_name], forms=[crf_name]))
     if form_df.empty:
-        return form_df
-    form_df = form_df[form_df[crf_name+'_complete'] != '']
-    if instance:
-        if 'redcap_repeat_instrument' not in form_df.columns:
-            raise ValueError(f'''Project '{project.export_project_info()['project_title']}' does not have repeat instances.
-                               \npatient_name: {patient_name}, crf_name: {crf_name}''')
-        if instance not in form_df['redcap_repeat_instance'].to_list():
-            raise ValueError(f'''Instance: {instance} not of available instances: {form_df['redcap_repeat_instance'].to_list()}
-                               \nIn project: {project.export_project_info()['project_title']}, crf_name: {crf_name}, patient_name: {patient_name}''') 
-        form_df = form_df[form_df['redcap_repeat_instance'] == instance]
+        return pd.DataFrame({})
+    if project.export_project_info()['has_repeating_instruments_or_events']:
+        repeating_forms = [f['form_name'] for f in project.export_repeating_instruments_events()]
+        if crf_name in repeating_forms:
+            form_df = form_df.loc[(form_df['redcap_repeat_instrument'] == crf_name) & (form_df['redcap_repeat_instance'] == instance)]
+        else:
+            form_df = form_df.iloc[0].to_frame().T
+    else:
+        form_df = form_df.iloc[0].to_frame().T
+
+    if form_df.empty:
+        return pd.DataFrame({})
+    if all(value == '' for value in form_df[form_df.columns[1:]].iloc[0]): 
+        return pd.DataFrame({})
     return form_df
 
 
@@ -425,6 +435,16 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             master_form_var_dict[var['form_name']].append(var['field_name'])
     for form in [f['instrument_name'] for f in project.export_instruments()]:
         master_form_var_dict[form].append(f'{form}_complete')
+
+
+    # list of forms that have repeating instruments
+    form_names = [form['instrument_name'] for form in project.export_instruments()]
+    repeating_forms = []
+    if project.export_project_info()['has_repeating_instruments_or_events'] == 1: 
+        rep_forms = [form['form_name'] for form in project.export_repeating_instruments_events()]
+        for name in form_names: 
+            if name in rep_forms:
+                repeating_forms.append(name)
     
     
     # loop through record_logs and add to db
@@ -432,6 +452,11 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     for i, log in tqdm(enumerate(record_logs), total=len(record_logs), desc='Adding data logs to db'):
         if log['details'] == '': continue # no changes to record
         
+        
+        # compare forms, if any error differences, raise error
+        # if log['action'] == 'Manage/Design ':
+        #     comp_redcap_and_db_schemas(db, project)
+
 
         # log deleting a record
         if re.sub(r'\d+$', '', log['action']).strip() == 'Delete record':
@@ -441,117 +466,108 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             continue
 
 
-        # list of current patients in db to check if there is a new patient
-        patient_name = log['action'].split(' ')[-1].strip()
-        patient_id = db.run_select_query("""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])
-        if not patient_id:
-            patient_id = db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_name, patient_name])
-        else:
-            patient_id = patient_id[0][0]
+        # formatting detail string into dictionary of ques: value
+        ques_value_dict = details_to_dict(log['details'])
 
 
-        crf_name = None
-        for form, vars in master_form_var_dict.items():
-            for var in vars:
-                if var in log:
-                    crf_name = form
-        if not crf_name:
-            raise failed_to_add.append((patient_name, log['timestamp'], f'redcap_variables: {log}'))       
-
-
+        # removing following fields from ques:value to insert to db:
+        # instance
         instance = None
-        if 'instance' in log['details']:
-            instance = int(log['details'].split('instance')[1].split('=')[1].split(']')[0].strip())
+        if '[instance' in ques_value_dict.keys():
+            instance = int(ques_value_dict['[instance'][0])
+            ques_value_dict.pop('[instance')
+        # record_id
+        if 'record_id' in ques_value_dict.keys():
+            ques_value_dict.pop('record_id')
+        # if after removing instance, complete, and record_id, ques:value is empty, nothing to add to database 
+        if len(ques_value_dict) == 0:
+            continue
 
 
-        crf_row = pd.DataFrame(db.run_select_query(f"""SELECT * FROM CRF_RedCap WHERE id_patient = {patient_id} AND crf_name = \'{crf_name}\' 
-                                    AND instance {'IS NULL' if instance is None else f'= {instance}'} AND deleted = '0'""")) # cant use run_select_query.record here, because ('IS NULL' or '= #') is not a valid sql variable
-        record_df = export_records_wrapper(project, patient_name, crf_name, instance)
-    
+        # The intersection of the log variables and the master form variables give the sub set 
+        # belonging to the form of interest
+        log_ques = set([ques_value.split('(')[0].strip() for ques_value in ques_value_dict.keys()])
+        crf_name = None
+        for form, form_ques in master_form_var_dict.items():
+            if log_ques.intersection(set(form_ques)):
+                crf_name = form
 
-        if record_df.empty and crf_row.empty: # deleted record in redcap not in db
-            continue 
 
-        elif record_df.empty and crf_row: # deleted record in redcap in db
-            deleted = 1 
-            db.run_insert_query('''UPDATE CRF_RedCap SET deleted = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
+        # list of current patients in db to check if there is a new patient
+        patient_names = [p[0] for p in db.run_select_query("""SELECT patient_name FROM patients""")]
+        patient_name = log['action'].split(' ')[-1].strip()
+        if patient_name not in patient_names:
+            db.run_insert_query(f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""", [patient_name, patient_name])
+        patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
 
-        elif not record_df.empty: # data to enter
 
-            if not crf_row.empty: # update
-                if f'{crf_name}_status' in record_df.columns.to_list():
-                    if record_df[f'{crf_name}_status'].iloc[0] == '4' or record_df[f'{crf_name}_status'].iloc[0] == '5':
-                        deleted = 0
-                        verified = 1
-                        db.run_insert_query('''UPDATE CRF_RedCap SET verified = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
-                crf_id = crf_row[0][0]
+        # if no form found, log variable is not up to date with current redcap variables
+        if crf_name is None:
+            failed_to_add.append((patient_name, log['timestamp'], ques_value_dict))
+            continue
+            # raise ValueError(f'No matching form found for the following questions: {log_ques}')
+        
 
-            elif crf_row.empty: # insert
-                deleted = 0
-                verified = 0
-                if f'{crf_name}_status' in record_df.columns.to_list():
-                    if record_df[f'{crf_name}_status'].iloc[0] == '4' or record_df[f'{crf_name}_status'].iloc[0] == '5':
-                        verified = 1
-                crf_id = db.run_insert_query('''INSERT INTO CRF_RedCap (id_patient, crf_name, instance, deleted, verified)
-                                    VALUES (%s, %s, %s, %s, %s)''', [patient_id, crf_name, instance, deleted, verified])
-
-            # data insertion/update
-            irr_cols = 3 if record_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
-            record_df = record_df[record_df.columns[irr_cols:]]
-            record_df = record_df.melt(var_name='redcap_variable')
-            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable']+')'
-            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable'].str.replace('___', '(')
-            record_df['id_crf'] = crf_id
-            utils.df_to_db_table(db, record_df, 'CRF_Data_RedCap')
-
+        # the instance variable will not appear in the log if it is the first instance of a repeating form
+        if (instance is None) and (crf_name in repeating_forms):
+            instance = 1
 
 
         # try to grab crf_row from patient, if none insert new crf_row
         # if exists, check if verified needs updated
-        # if len(crf_row) == 0:
-        #     if f'{crf_name}_status' in record_df.columns.to_list():
-        #         if record_df[f'{crf_name}_status'].iloc[0] == '4' or record_df[f'{crf_name}_status'].iloc[0] == '5':
-        #             verified = 1
-        #         else:
-        #             verified = 0
-        #     else:
-        #         verified = 0
+        crf_row = db.run_select_query(f"""SELECT * FROM CRF_RedCap WHERE id_patient = {patient_id} AND crf_name = \'{crf_name}\' 
+                                    AND instance {'IS NULL' if instance is None else f'= {instance}'} AND deleted = '0'""") # cant use record here, because ('IS NULL' or '= #') is not a sql variable
+        if len(crf_row) == 0:
+
+            # inserting crf
+            if f'{crf_name}_status' in ques_value_dict.keys():
+                if ques_value_dict[f'{crf_name}_status'] == '4' or ques_value_dict[f'{crf_name}_status'] == '5':
+                    verified = 1
+                else:
+                    verified = 0
+                # dont need to pop it off here since it is only used to extract verified, not for data insertion
+            else:
+                verified = 0
+            deleted = 0
             
             
-        #     crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified, deleted) VALUES 
-        #                                     (%s, %s, {'NULL' if instance is None else instance}, %s, %s)""", [patient_id, crf_name, verified, '0'])
+            form_df = get_form_df(project, patient_name, crf_name, instance)
+            if form_df.empty: # if empty, means there is no live data for this patient and a deleted log should appear later
+                continue 
+            crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified, deleted) VALUES 
+                                            (%s, %s, {'NULL' if instance is None else instance}, %s, %s)""", [patient_id, crf_name, verified, deleted])
             
-        #     irr_cols = 3 if form_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
-        #     form_df = form_df[form_df.columns[irr_cols:]]
-        #     form_df = form_df.melt(var_name='redcap_variable')
-        #     form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable']+')'
-        #     form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable'].str.replace('___', '(')
-        #     form_df['id_crf'] = crf_id
+            irr_cols = 3 if form_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
+            form_df = form_df[form_df.columns[irr_cols:]]
+            form_df = form_df.melt(var_name='redcap_variable')
+            form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable']+')'
+            form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable'].str.replace('___', '(')
+            form_df['id_crf'] = crf_id
 
-        #     # inserting data
-        #     utils.df_to_db_table(db, form_df, 'CRF_Data_RedCap')
-
-
-        # # if crf does exist, grab crf_id, and check if db_verified needs updated
-        # else:
-        #     crf_id = crf_row[0][0]
-        #     if f'{crf_name}_status' in ques_value_dict.keys():
-        #         if ques_value_dict[f'{crf_name}_status'] == '4' or ques_value_dict[f'{crf_name}_status'] == '5':
-        #             verified = 1
-        #         else:
-        #             verified = 0
-        #         db.run_insert_query(f"UPDATE CRF_RedCap SET verified = %s WHERE id = %s", [verified, crf_row[0][0]])
-        #         ques_value_dict.pop(f'{crf_name}_status')
+            # inserting data
+            utils.df_to_db_table(db, form_df, 'CRF_Data_RedCap')
 
 
-        #     # insert data into crf_data_redcap
-        #     for key, value in ques_value_dict.items():
-        #         db.run_insert_query("""
-        #         INSERT INTO CRF_Data_RedCap (id_crf, value, redcap_variable)
-        #         VALUES (%s, %s, %s)
-        #         ON DUPLICATE KEY UPDATE value=%s;
-        #         """, (crf_id, value, key,
-        #                 value))           
+        # if crf does exist, grab crf_id, and check if db_verified needs updated
+        else:
+            crf_id = crf_row[0][0]
+            if f'{crf_name}_status' in ques_value_dict.keys():
+                if ques_value_dict[f'{crf_name}_status'] == '4' or ques_value_dict[f'{crf_name}_status'] == '5':
+                    verified = 1
+                else:
+                    verified = 0
+                db.run_insert_query(f"UPDATE CRF_RedCap SET verified = %s WHERE id = %s", [verified, crf_row[0][0]])
+                ques_value_dict.pop(f'{crf_name}_status')
+
+
+            # insert data into crf_data_redcap
+            for key, value in ques_value_dict.items():
+                db.run_insert_query("""
+                INSERT INTO CRF_Data_RedCap (id_crf, value, redcap_variable)
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE value=%s;
+                """, (crf_id, value, key,
+                        value))           
         
 
 

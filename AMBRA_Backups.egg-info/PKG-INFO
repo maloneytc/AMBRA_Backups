@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: AMBRA_Backups
+Version: 0.1
+Summary: Various utility classes for connecting to the AMBRA API and backing up study data.
+Home-page: 
+Author: Thomas Maloney
+Author-email: malonetc@ucmail.uc.edu
+License: MIT
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# AMBRA_Backups
+Code using the AMBRA SDK that is used to backup studies on AMBRA.
