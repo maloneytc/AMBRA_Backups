@@ -576,7 +576,8 @@ class Database():
             phi_namespace = %s,
             storage_namespace = %s,
             viewer_link = %s {set_download(redownload)},
-            must_approve = %s
+            must_approve = %s,
+            deleted = 0,
             {add_comma(cfields_dbcols) + ', '.join([this+" = %s" for this in cfields_dbcols])}
             WHERE id = %s;
             """
