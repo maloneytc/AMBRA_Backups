@@ -430,11 +430,11 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     # loop through record_logs and add to db
     failed_to_add = []
     for i, log in tqdm(enumerate(record_logs), total=len(record_logs), desc='Adding data logs to db'):
-        if log['details'] == '': continue # no changes to record
+        if log['details'] == '': # no changes to record
+            continue 
         
-
         # log deleting a record
-        if re.sub(r'\d+$', '', log['action']).strip() == 'Delete record':
+        if 'Delete record' in log['action']:
             patient_name = log['action'].split(' ')[-1].strip()
             patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
             db.run_insert_query(f"""UPDATE CRF_RedCap SET deleted = 1 WHERE id_patient = %s""", [patient_id])
