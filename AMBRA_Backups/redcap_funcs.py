@@ -432,7 +432,8 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     for i, log in tqdm(enumerate(record_logs), total=len(record_logs), desc='Adding data logs to db'):
         if log['details'] == '': # no changes to record
             continue 
-        
+        print('log\n\t', log)
+        print('master_form_var_dict\n\t', master_form_var_dict.items())
         # log deleting a record
         if 'Delete record' in log['action']:
             patient_name = log['action'].split(' ')[-1].strip()
@@ -450,18 +451,19 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             patient_id = patient_id[0][0]
 
 
+        details = dict(item.split(" = ") for item in log['details'].split(", "))
         crf_name = None
         for form, vars in master_form_var_dict.items():
             for var in vars:
-                if var in log:
+                if var in details:
                     crf_name = form
         if not crf_name:
             failed_to_add.append((patient_name, log['timestamp'], f'redcap_variables: {log}'))       
 
 
         instance = None
-        if 'instance' in log['details']:
-            instance = int(log['details'].split('instance')[1].split('=')[1].split(']')[0].strip())
+        if '[instance' in details: # if instance is in log, then its key is [instance in details dictionary
+            instance = int(details['[instance'][:-1])
 
 
         crf_row = pd.DataFrame(db.run_select_query(f"""SELECT * FROM CRF_RedCap WHERE id_patient = {patient_id} AND crf_name = \'{crf_name}\' 
