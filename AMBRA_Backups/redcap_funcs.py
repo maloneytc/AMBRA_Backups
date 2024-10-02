@@ -456,7 +456,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 if var in log:
                     crf_name = form
         if not crf_name:
-            raise failed_to_add.append((patient_name, log['timestamp'], f'redcap_variables: {log}'))       
+            failed_to_add.append((patient_name, log['timestamp'], f'redcap_variables: {log}'))       
 
 
         instance = None
