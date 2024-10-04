@@ -434,7 +434,24 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
     # try: 
 
-    # internval for logs to be extracted 
+    
+    project_name = project.export_project_info()['project_title']
+    db_backup_proj_name = db.run_select_query('SELECT project_name FROM backup_info_RedCap')
+    if not db_backup_proj_name:
+        db.run_insert_query('INSERT INTO backup_info_RedCap (project_name) VALUES (%s)', [project_name])
+    elif len(db_backup_proj_name) > 1:
+        poss_db_names = [name[0] for name in db_backup_proj_name]
+        if project_name not in poss_db_names:
+            raise ValueError(f'Live redcap name: {project_name}, is not in list of backup names: {poss_db_names}')    
+    else:
+        db_backup_proj_name = db_backup_proj_name[0][0]
+        if project_name != db_backup_proj_name:
+            raise ValueError(f'Live redcap name: {project_name}, database backup name: {db_name}.{db_backup_proj_name}')
+
+    start_date = db.run_select_query("""SELECT last_backup FROM backup_info_RedCap WHERE project_name = %s""", [db_backup_proj_name])
+    if not start_date:
+        db.run_insert_query("""INSERT INTO backup_info_RedCap (last_backup) VALUES (%s)""", [datetime(1900, 1, 1)])
+
     only_record_logs = True
     record_logs = grab_logs(db, project, only_record_logs, start_date, end_date)
 
