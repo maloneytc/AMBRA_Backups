@@ -8,6 +8,8 @@ import pytest
 import random
 import string
 
+pytest_form = "please_dont_edit_form_for_testing"
+
 
 @pytest.fixture
 def db():
@@ -28,6 +30,10 @@ def generate_random_input(size=6, chars=string.ascii_uppercase + string.digits):
 
 
 def get_id_patient(db, patient_name):
+    """
+    Get id of patient from patient_name. If patient_name not in patients table,
+    insert new patient in patients table and new crf data in CRF_RedCap
+    """
     patient_query = f"SELECT id FROM patients WHERE patient_name = '{patient_name}'"
     patient = db.run_select_query(patient_query)
 
@@ -46,9 +52,9 @@ def get_id_patient(db, patient_name):
 
     if not crf_redcap_found:
         db.run_insert_query(
-            """INSERT INTO CRF_RedCap (id_patient, crf_name, record_created, record_updated, deleted) 
-            VALUES (%s, 'baseline_brain_crf', %s, %s, %s)""",
-            [id_patient, datetime.now(), datetime.now(), 0],
+            """INSERT INTO CRF_RedCap (id_patient, crf_name, instance, record_created, record_updated, deleted) 
+            VALUES (%s, %s, %s, %s, %s, %s)""",
+            [id_patient, pytest_form, 1, datetime.now(), datetime.now(), 0],
         )
     return id_patient
 
@@ -58,7 +64,9 @@ project_data_to_db
 
 Scenarios:
 - delete_record: when log indicates a record has been deleted
-- update_record_in_redcap_not_db: 
+- update_record_not_redcap_not_db: when log indicates a record has been updated, but it's not found in both redcap and db
+- update_record_in_redcap_not_db: when log indicates a record has been updated, it's not found in redcap but not db
+
 """
 
 
@@ -85,7 +93,6 @@ def test_delete_record(mocker, db, project):
     patient_crf_data = db.run_select_query(
         f"""SELECT deleted FROM CRF_RedCap WHERE id_patient = {id_patient}"""
     )
-    print("crf data: ", patient_crf_data)
 
     for data in patient_crf_data:
         assert data[0] == 1
@@ -95,22 +102,25 @@ def test_delete_record(mocker, db, project):
         "UPDATE CRF_RedCap SET deleted = 0 WHERE id_patient = %s", [id_patient]
     )
 
+def test_update_record_not_redcap_not_db(mocker, db, project):
+    """
+    1. Mock log, satisfying the following conditions:
+    - choose a patient name that is not in redcap, and deleted in db
+    
+    2. Get original patient and CRF_RedCap data before calling project_data_to_db
+    - Expected behavior: the original data should be the same as the data after project_data_to_db is called ie. the
+    function call does not change anything
 
-def test_update_record_not_redcap_in_db(mocker, db, project):
+    3. Call project_data_to_db
+
+    4. Compare data before vs. after calling
+    
+    """
     # patch grab_logs
-    patient_name = 10016
+    patient_name = "test_update_not_redcap_not_db"
     choices = ["1", "2", "3"]
-    text_input = generate_random_input()
     dropdown_input = random.choice(choices)
     radio_input = random.choice(choices)
-    to_mock = {
-        "record_id": patient_name,
-        "pytest_text": text_input,
-        "pytest_dropdown": dropdown_input,
-        "pytest_radio": radio_input,
-        "redcap_repeat_instance": 1,
-        "redcap_repeat_instrument": "please_dont_edit_form_for_testing",
-    }
 
     mock_logs = [
         {
@@ -123,27 +133,33 @@ def test_update_record_not_redcap_in_db(mocker, db, project):
     ]
     mocker.patch("AMBRA_Backups.redcap_funcs.grab_logs", return_value=mock_logs)
 
-    # update record to add to project's Logging
-    project.import_records([to_mock])
-
-    # delete the record from project
-    project.delete_records([patient_name])
-
     # get patient id, then set delete = 1 in db
     id_patient = get_id_patient(db, patient_name)
+    original_patient_data = db.run_select_query(
+        """SELECT * FROM patients WHERE patient_name = %s""", [patient_name]
+    )
+    original_crf_data = db.run_select_query(
+        f"""SELECT * FROM CRF_RedCap WHERE id_patient = {id_patient} AND crf_name = '{pytest_form}'
+                                    AND instance = '1' AND deleted = '0'"""
+    )
+
     db.run_insert_query(
         "UPDATE CRF_RedCap SET deleted = 1 WHERE id_patient = %s", [id_patient]
     )
 
     AMBRA_Backups.redcap_funcs.project_data_to_db(db, project)
 
-    # reinsert record into project for future testing
-    test_record = {
-        "record_id": patient_name,
-        "pytest_text": "",
-        "pytest_dropdown": "1",
-        "pytest_radio": "1",
-        "redcap_repeat_instance": 1,
-        "redcap_repeat_instrument": "please_dont_edit_form_for_testing",
-    }
-    project.import_records([test_record])
+    current_patient_data = db.run_select_query(
+        """SELECT * FROM patients WHERE patient_name = %s""", [patient_name]
+    )
+    current_crf_data = db.run_select_query(
+        f"""SELECT * FROM CRF_RedCap WHERE id_patient = {id_patient} AND crf_name = '{pytest_form}'
+                                    AND instance = '1' AND deleted = '0'"""
+    )
+
+    print('\toriginal patient data:', original_patient_data, '\n\t original crf data:', original_crf_data)
+    print('\tcurrent patient data:', original_patient_data, '\n\t current crf data:', current_crf_data)
+
+    # test if all data is correct
+    assert original_patient_data == current_patient_data
+    assert original_crf_data == current_crf_data

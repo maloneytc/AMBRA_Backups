@@ -489,7 +489,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         if record_df.empty and crf_row.empty: # deleted record in redcap not in db
             continue 
 
-        elif record_df.empty and crf_row: # deleted record in redcap in db
+        elif record_df.empty and not crf_row.empty: # deleted record in redcap in db
             deleted = 1 
             db.run_insert_query('''UPDATE CRF_RedCap SET deleted = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
 
@@ -644,5 +644,3 @@ if __name__ == '__main__':
 
     # for date in dates:
     #     project_data_to_db(db, project, date[1], date[0])
-
-
