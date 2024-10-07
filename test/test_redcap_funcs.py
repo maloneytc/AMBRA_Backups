@@ -168,7 +168,12 @@ def test_update_record_in_redcap_not_db(mocker, db, project):
     1. Mock log satisfying the following conditions:
     - Choose a patient name that is in redcap, but not found in db
 
-    2.
+    2. Change record on redcap based on mock log
+    - project_data_to_db() pulls live data from redcap, so record has to be actually updated on redcap
+
+    3. Call project_data_to_db
+
+    4. Compare data between log vs. db
     """
     # patch grab_logs
     patient_name = "test_update_in_redcap_not_db"
@@ -248,3 +253,78 @@ def test_update_record_in_redcap_not_db(mocker, db, project):
         cursor.execute("DELETE FROM CRF_Data_RedCap WHERE id_crf = '%s'", [id_crf])
         cursor.execute("DELETE FROM CRF_RedCap WHERE id_patient = '%s'", [id_patient])
     db.connection.commit()
+
+def test_update_record_in_redcap_in_db(mocker, db, project):
+    """
+    1. Mock log satisfying the following conditions:
+    - Choose a patient name that is in both redcap and db
+
+    2. Change record on redcap based on mock log
+    - project_data_to_db() pulls live data from redcap, so record has to be actually updated on redcap
+
+    3. Call project_data_to_db
+
+    4. Compare data between log vs db
+    """
+    # patch grab_logs
+    patient_name = "test_update_in_redcap_in_db"
+    choices = ["1", "2", "3"]
+    dropdown_input = random.choice(choices)
+    radio_input = random.choice(choices)
+    id_patient = get_id_patient(db, patient_name)
+
+    mock_logs = [
+        {
+            "timestamp": "2024-09-24 11:11",
+            "username": "test_user",
+            "action": f"Update record {patient_name}",
+            "details": f"""record_id = '{patient_name}', pytest_dropdown = '{dropdown_input}', pytest_radio = '{radio_input}'""",
+            "record": patient_name,
+        }
+    ]
+    mocker.patch("AMBRA_Backups.redcap_funcs.grab_logs", return_value=mock_logs)
+    mock_record = {
+        "record_id": patient_name,
+        "redcap_repeat_instance": 1,
+        "redcap_repeat_instrument": pytest_form,
+        "pytest_dropdown": dropdown_input,
+        "pytest_radio": radio_input,
+        "pytest_text": generate_random_input(),
+    }
+
+    # change the record on redcap based on mock
+    project.import_records([mock_record])
+
+    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project)
+
+    # check if CRF_RedCap has correct data
+    record_found = db.run_select_query(
+        """SELECT id, crf_name, instance, deleted, verified
+        FROM CRF_RedCap
+        WHERE id_patient = %s""",
+        [id_patient],
+    )
+    record = record_found[0]
+
+    id_crf = record[0]
+    assert record[1] == pytest_form
+    assert record[2] == None
+    assert record[3] == 0
+    assert record[4] == 0
+
+    # compare CRF_Data_RedCap with mock log
+    data_found = db.run_select_query(
+        """SELECT value, redcap_variable 
+        FROM CRF_Data_RedCap
+        WHERE id_crf = %s
+        """,
+        [id_crf],
+    )
+
+    for data in data_found:
+        variable = data[1]
+        value = data[0]
+        if variable not in mock_record:
+            assert value == "0"
+        else:
+            assert value == mock_record[variable]
