@@ -464,8 +464,6 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     for i, log in tqdm(enumerate(record_logs), total=len(record_logs), desc='Adding data logs to db'):
         if log['details'] == '': # no changes to record
             continue 
-        print('log\n\t', log)
-        print('master_form_var_dict\n\t', master_form_var_dict.items())
         # log deleting a record
         if 'Delete record' in log['action']:
             patient_name = log['action'].split(' ')[-1].strip()
@@ -511,6 +509,12 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             db.run_insert_query('''UPDATE CRF_RedCap SET deleted = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
 
         elif not record_df.empty: # data to enter
+            # preprocess record_df for data insertion/update
+            irrelevant_columns = {'redcap_repeat_instrument', 'redcap_event_name', 'redcap_repeat_instance'}
+            record_df = record_df.drop(irrelevant_columns, axis=1, errors='ignore')
+            record_df = record_df.melt(var_name='redcap_variable')
+            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable']+')'
+            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable'].str.replace('___', '(')
 
             if not crf_row.empty: # update
                 if f'{crf_name}_status' in record_df.columns.to_list():
@@ -519,6 +523,14 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                         verified = 1
                         db.run_insert_query('''UPDATE CRF_RedCap SET verified = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
                 crf_id = crf_row[0][0]
+                record_df['id_crf'] = crf_id
+
+                # update CRF_Data_RedCap based on record_df
+                for index, row in record_df.iterrows():
+                    db.run_insert_query(
+                        'UPDATE CRF_Data_RedCap SET value = %s WHERE id_crf = %s AND redcap_variable = %s',
+                        [row['value'], crf_id.item(), row['redcap_variable']]
+                    ) 
 
             elif crf_row.empty: # insert
                 deleted = 0
@@ -528,15 +540,12 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                         verified = 1
                 crf_id = db.run_insert_query('''INSERT INTO CRF_RedCap (id_patient, crf_name, instance, deleted, verified)
                                     VALUES (%s, %s, %s, %s, %s)''', [patient_id, crf_name, instance, deleted, verified])
+                record_df['id_crf'] = crf_id
 
-            # data insertion/update
-            irr_cols = 3 if record_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
-            record_df = record_df[record_df.columns[irr_cols:]]
-            record_df = record_df.melt(var_name='redcap_variable')
-            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable']+')'
-            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable'].str.replace('___', '(')
-            record_df['id_crf'] = crf_id
-            utils.df_to_db_table(db, record_df, 'CRF_Data_RedCap')
+                # insert record df rows into CRF_Data_RedCap
+                utils.df_to_db_table(db, record_df, 'CRF_Data_RedCap')
+
+            # print('\trecord_df after processed: \n', record_df.to_string())
 
 
 
