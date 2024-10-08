@@ -435,7 +435,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     # try: 
 
     
-    project_name = project.export_project_info()['project_title']
+    project_name = project.export_project_info()['project_title'].strip()
     db_backup_proj_name = db.run_select_query('SELECT project_name FROM backup_info_RedCap')
     if not db_backup_proj_name:
         db.run_insert_query('INSERT INTO backup_info_RedCap (project_name) VALUES (%s)', [project_name])
@@ -446,11 +446,12 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     else:
         db_backup_proj_name = db_backup_proj_name[0][0]
         if project_name != db_backup_proj_name:
-            raise ValueError(f'Live redcap name: {project_name}, database backup name: {db_name}.{db_backup_proj_name}')
+            raise ValueError(f"""Live redcap name: '{project_name}', database backup name: {db_name}.{db_backup_proj_name}""")
 
     start_date = db.run_select_query("""SELECT last_backup FROM backup_info_RedCap WHERE project_name = %s""", [db_backup_proj_name])
     if not start_date:
         db.run_insert_query("""INSERT INTO backup_info_RedCap (last_backup) VALUES (%s)""", [datetime(1900, 1, 1)])
+    start_date = start_date[0][0]
 
     only_record_logs = True
     record_logs = grab_logs(db, project, only_record_logs, start_date, end_date)
@@ -627,7 +628,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
 
     # if export successful, update the last export time
-    project_name = project.export_project_info()['project_title']
+    project_name = project.export_project_info()['project_title'].strip()
     db.run_insert_query('UPDATE backup_info_RedCap SET last_backup = %s WHERE project_name = %s', [datetime.now(), project_name])
 
 
@@ -644,7 +645,7 @@ if __name__ == '__main__':
 
     testing = 0
     db_name = 'TESTED'
-    project_name = 'TESTED Data Collection'
+    project_name = 'TESTED DC'
     # db_name = 'SISTER'
     # project_name = '29423 Vagal - SISTER'
     if testing:
@@ -653,6 +654,10 @@ if __name__ == '__main__':
     else:
         db = AMBRA_Backups.database.Database(db_name)
         project = get_redcap_project(project_name)
+
+
+
+    project_data_to_db(db, project)
 
 
     # manual backup
