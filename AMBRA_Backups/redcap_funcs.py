@@ -453,7 +453,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         db.run_insert_query("""INSERT INTO backup_info_RedCap (last_backup) VALUES (%s)""", [datetime(1900, 1, 1)])
     start_date = start_date[0][0]
 
-    only_record_logs = True
+    only_record_logs = True 
     record_logs = grab_logs(db, project, only_record_logs, start_date, end_date)
 
     # dictionary of form names and their variables
