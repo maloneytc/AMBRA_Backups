@@ -446,7 +446,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
     only_record_logs = True
     record_logs = grab_logs(db, project, only_record_logs, start_date, end_date)
-
+     
     # dictionary of form names and their variables
     master_form_var_dict = {}
     for var in project.metadata:
@@ -457,7 +457,16 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             master_form_var_dict[var['form_name']].append(var['field_name'])
     for form in [f['instrument_name'] for f in project.export_instruments()]:
         master_form_var_dict[form].append(f'{form}_complete')
-    
+
+    # repeating form collection
+    form_names = [form['instrument_name'] for form in project.export_instruments()]
+    repeating_forms = []
+    if project.export_project_info()['has_repeating_instruments_or_events'] == 1: 
+        rep_forms = [form['form_name'] for form in project.export_repeating_instruments_events()]
+        for name in form_names: 
+            if name in rep_forms:
+                repeating_forms.append(name)
+
     
     # loop through record_logs and add to db
     failed_to_add = []
@@ -494,10 +503,12 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         instance = None
         if '[instance' in details: # if instance is in log, then its key is [instance in details dictionary
             instance = int(details['[instance'][:-1])
+        if (instance is None) and (crf_name in repeating_forms):
+            instance = 1
 
 
         crf_row = pd.DataFrame(db.run_select_query(f"""SELECT * FROM CRF_RedCap WHERE id_patient = {patient_id} AND crf_name = \'{crf_name}\' 
-                                    AND instance {'IS NULL' if instance is None else f'= {instance}'} AND deleted = '0'""")) # cant use run_select_query.record here, because ('IS NULL' or '= #') is not a valid sql variable
+                                    AND instance {'IS NULL' if instance is None else f'= {instance}'} AND deleted = '0'""", column_names=True)) # cant use run_select_query.record here, because ('IS NULL' or '= #') is not a valid sql variable
         record_df = export_records_wrapper(project, patient_name, crf_name, instance)
     
 
@@ -506,7 +517,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
         elif record_df.empty and not crf_row.empty: # deleted record in redcap in db
             deleted = 1 
-            db.run_insert_query('''UPDATE CRF_RedCap SET deleted = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
+            db.run_insert_query('''UPDATE CRF_RedCap SET deleted = %s WHERE id = %s''', [deleted, str(crf_row['id'].iloc[0])])
 
         elif not record_df.empty: # data to enter
             # preprocess record_df for data insertion/update
@@ -521,8 +532,8 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                     if record_df[f'{crf_name}_status'].iloc[0] == '4' or record_df[f'{crf_name}_status'].iloc[0] == '5':
                         deleted = 0
                         verified = 1
-                        db.run_insert_query('''UPDATE CRF_RedCap SET verified = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
-                crf_id = crf_row[0][0]
+                        db.run_insert_query('''UPDATE CRF_RedCap SET verified = %s WHERE id = %s''', [deleted, str(crf_row['id'].iloc[0])])
+                crf_id = crf_row['id'].iloc[0]
                 record_df['id_crf'] = crf_id
 
                 # update CRF_Data_RedCap based on record_df

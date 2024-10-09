@@ -7,6 +7,7 @@ from datetime import datetime
 import pytest
 import random
 import string
+import pandas as pd
 
 pytest_form = "please_dont_edit_form_for_testing"
 
@@ -162,6 +163,87 @@ def test_update_record_not_redcap_not_db(mocker, db, project):
     assert original_patient_data == current_patient_data
     assert original_crf_data == current_crf_data
 
+    db.run_insert_query("""DELETE FROM CRF_Data_RedCap WHERE id_crf = %s""", [int(current_crf_data[0][0])])
+    db.run_insert_query("""DELETE FROM CRF_RedCap WHERE id_patient = %s""", [id_patient])
+    db.run_insert_query("""DELETE FROM patients WHERE patient_name = %s""", [patient_name])
+
+
+def test_update_record_not_in_redcap_in_db(mocker, db, project):
+    """
+    Condition for mock log:
+    1. Must not be a live record in redcap, but have a CRF_RedCap entry with deleted = '0'
+    - In the following scenario: 
+    ex. weeks logs: [..., update 9999, ..., delete 9999, ...]
+    'update 9999' would try to make an api call for record 9999, but 'delete 9999' indicates the record
+    is no longer present, and 9999 would already exist in the database since it is an update, 
+    hence meeting the condition `record_df.empty and not crf_row.empty` 
+
+    test:
+    1. create patient and CRF_RedCap through `get_id_patient`(in_db)
+    2. create a record in RedCap for patient(in_redcap)
+    3. delete the same patient(not_in_redcap)
+    4. create a mock update log of patient
+    5. send log through `project_data_to_db`
+    6. check that `project_data_to_db` set patient's CRF_RedCap deleted = '1'
+    7. test complete, delete test patient, CRF_RedCap, and CRF_Data_RedCap entries
+    """
+
+    # in_db
+    patient_name = 'patient_not_in_redcap_in_db'
+    id_patient = get_id_patient(db, patient_name)
+
+    # in_redcap
+    choices = ["1", "2", "3"]
+    dropdown_input = random.choice(choices)
+    radio_input = random.choice(choices)
+    mock_record = {
+        "record_id": patient_name,
+        "redcap_repeat_instance": 1,
+        "redcap_repeat_instrument": pytest_form,
+        "pytest_dropdown": dropdown_input,
+        "pytest_radio": radio_input,
+        "pytest_text": generate_random_input(),
+    }
+    project.import_records([mock_record])
+
+    # not_in_redcap
+    project.delete_records(records=[patient_name])
+
+    # mock
+    choices = ["1", "2", "3"]
+    dropdown_input = random.choice(choices)
+    radio_input = random.choice(choices)
+    mock_logs = [
+        {
+            "timestamp": "2024-09-24 11:11",
+            "username": "test_user",
+            "action": f"Update record {patient_name}",
+            "details": f"""record_id = '{patient_name}', pytest_dropdown = '{dropdown_input}', pytest_radio = '{radio_input}'""",
+            "record": patient_name,
+        }
+    ]
+    mocker.patch("AMBRA_Backups.redcap_funcs.grab_logs", return_value=mock_logs)
+
+    # data download
+    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project)
+
+    # check for deletion
+    crf_row = pd.DataFrame(db.run_select_query(
+        "SELECT * FROM CRF_RedCap WHERE id_patient = %s",
+        [id_patient], column_names=True)
+    )
+    print(crf_row['deleted'].to_markdown())
+    all_deleted = (crf_row['deleted'] == 1)
+    print(all_deleted.to_markdown())
+    assert (crf_row['deleted'] == 1).all()
+
+    # clean up
+    print(int(crf_row['id'].iloc[0]))
+    db.run_insert_query("""DELETE FROM CRF_Data_RedCap WHERE id_crf = %s""", [int(crf_row['id'].iloc[0])])
+    db.run_insert_query("""DELETE FROM CRF_RedCap WHERE id_patient = %s""", [id_patient])
+    db.run_insert_query("""DELETE FROM patients WHERE patient_name = %s""", [patient_name])
+
+
 
 def test_update_record_in_redcap_not_db(mocker, db, project):
     """
@@ -219,7 +301,7 @@ def test_update_record_in_redcap_not_db(mocker, db, project):
 
     id_crf = record[0]
     assert record[1] == pytest_form
-    assert record[2] == None
+    assert record[2] == 1 #instance
     assert record[3] == 0
     assert record[4] == 0
 
@@ -253,6 +335,7 @@ def test_update_record_in_redcap_not_db(mocker, db, project):
         cursor.execute("DELETE FROM CRF_Data_RedCap WHERE id_crf = '%s'", [id_crf])
         cursor.execute("DELETE FROM CRF_RedCap WHERE id_patient = '%s'", [id_patient])
     db.connection.commit()
+
 
 def test_update_record_in_redcap_in_db(mocker, db, project):
     """
@@ -308,7 +391,7 @@ def test_update_record_in_redcap_in_db(mocker, db, project):
 
     id_crf = record[0]
     assert record[1] == pytest_form
-    assert record[2] == None
+    assert record[2] == 1 #instance
     assert record[3] == 0
     assert record[4] == 0
 
@@ -320,6 +403,7 @@ def test_update_record_in_redcap_in_db(mocker, db, project):
         """,
         [id_crf],
     )
+    print('id_crf:', id_crf)
 
     for data in data_found:
         variable = data[1]
@@ -328,3 +412,7 @@ def test_update_record_in_redcap_in_db(mocker, db, project):
             assert value == "0"
         else:
             assert value == mock_record[variable]
+
+    db.run_insert_query("""DELETE FROM CRF_Data_RedCap WHERE id_crf = %s""", [id_crf])
+    db.run_insert_query("""DELETE FROM CRF_RedCap WHERE id_patient = %s""", [id_patient])
+    db.run_insert_query("""DELETE FROM patients WHERE patient_name = %s""", [patient_name])
