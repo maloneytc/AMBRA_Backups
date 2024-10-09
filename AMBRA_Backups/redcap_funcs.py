@@ -229,7 +229,9 @@ def comp_schema_cap_db(db_name, project_name):
 
             var_discreps = unique_data_vars[~unique_data_vars.isin(schema_vars)].to_list()
             if var_discreps:
-                var_discrep_string = f"\nThe following CRF_Schema_RedCap.redcap_variable's are not in unique CRF_Data_RedCap.redcap_variable's:\n{var_discreps}\n\n"
+                # redcap_variables inside the data table might not have a schema variable to coorispond to, but might have an active crf_id
+                # So the non-included redcap_variable will be attached to a csv report if not taken out of the data table, or have the schema corrected. Case by case 
+                var_discrep_string = f"\nThe following CRF_Data_RedCap.redcap_variable's are not in CRF_schema_RedCap.redcap_variable's:\n{var_discreps}\n\n"
 
         # print('redcap_variables')
         # print('CRF_Data_RedCap')
@@ -240,21 +242,31 @@ def comp_schema_cap_db(db_name, project_name):
 
 
         # question text discrepancies
-        schema_questions = pd.DataFrame(db.run_select_query("""SELECT DISTINCT(question_text) FROM CRF_Schema_RedCap
-                                WHERE crf_name = %s AND question_text IS NOT NULL""", [crf_name], column_names=True))['question_text']
+        schema_questions = pd.DataFrame(db.run_select_query("""SELECT question_text, redcap_variable FROM CRF_Schema_RedCap
+                                        WHERE crf_name = %s AND question_text IS NOT NULL""", [crf_name], column_names=True))
+        schema_questions['variable-value'] = schema_questions['redcap_variable']+schema_questions['question_text']
 
-        api_questions = pd.DataFrame(project.metadata)
+        api_questions = pd.DataFrame(project.export_metadata())
+        api_questions = api_questions[api_questions['form_name'] == crf_name]
+        field_names = pd.DataFrame(project.export_field_names())
+        field_names.rename(columns={'original_field_name': 'field_name'}, inplace=True)
+        api_questions = pd.merge(api_questions, field_names, on='field_name', how='left')
+        api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 
+                          'export_field_name'] = api_questions.loc[api_questions['export_field_name'].str.contains('___', na=False), 
+                                                                   'export_field_name'].apply(lambda x: x.split('___')[0]+'('+x.split('___')[1]+')')
+        api_questions['redcap_variable'] = api_questions['export_field_name']
+
         def only_html(row):
             soup = BeautifulSoup(row['field_label'], 'html.parser')
             if bool(soup.find()):
                 return row['field_label']
         master_html = ''.join(api_questions.apply(only_html, axis=1).dropna().values.tolist())
+        api_questions = api_questions[(api_questions['field_type'] != 'descriptive') &
+                                      ~(api_questions['field_label'].str.contains('record', case=False)) &
+                                    (~api_questions['field_name'].apply(lambda x: x in master_html))][['redcap_variable','field_label']]
+        api_questions['variable-value'] = api_questions['redcap_variable']+api_questions['field_label']
 
-
-        api_questions = api_questions[(api_questions['form_name'] == crf_name) &
-                                    (api_questions['field_type'] != 'descriptive') &
-                                    (~api_questions['field_name'].apply(lambda x: x in master_html))][['field_name','field_label']]
-        question_discreps = api_questions[~api_questions['field_label'].isin(schema_questions)]
+        question_discreps = api_questions[~api_questions['variable-value'].isin(schema_questions['variable-value'])]
         ques_discrep_string = ''
         if not question_discreps.empty:
             discrep_dict = {v[0]:v[1] for v in question_discreps.values}
@@ -265,8 +277,6 @@ def comp_schema_cap_db(db_name, project_name):
         # display(schema_questions)
         # print('api_questions')
         # display(api_questions.reset_index())
-
-
 
 
         # radio button option discrepancies
@@ -299,11 +309,16 @@ def comp_schema_cap_db(db_name, project_name):
         # display(api_radio_options.reset_index()
 
         form_discrepancies = var_discrep_string + ques_discrep_string + radio_discrep_string
-        master_discreps += f'\n{crf_name:-^{40}}\n{form_discrepancies}'
+        if form_discrepancies:
+            master_discreps += f'\n{crf_name:-^{40}}\n{form_discrepancies}'
 
 
     if master_discreps:
+        print('====================================================================')
+        print('====================================================================')
         print(master_discreps)
+        print('====================================================================')
+        print('====================================================================')
         raise Exception('Please handle the above discrepancies')
 
 
@@ -411,10 +426,27 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
     # try: 
 
-    # internval for logs to be extracted 
+    
+    project_name = project.export_project_info()['project_title']
+    db_backup_proj_name = db.run_select_query('SELECT project_name FROM backup_info_RedCap')
+    if not db_backup_proj_name:
+        db.run_insert_query('INSERT INTO backup_info_RedCap (project_name) VALUES (%s)', [project_name])
+    elif len(db_backup_proj_name) > 1:
+        poss_db_names = [name[0] for name in db_backup_proj_name]
+        if project_name not in poss_db_names:
+            raise ValueError(f'Live redcap name: {project_name}, is not in list of backup names: {poss_db_names}')    
+    else:
+        db_backup_proj_name = db_backup_proj_name[0][0]
+        if project_name != db_backup_proj_name:
+            raise ValueError(f'Live redcap name: {project_name}, database backup name: {db_name}.{db_backup_proj_name}')
+
+    start_date = db.run_select_query("""SELECT last_backup FROM backup_info_RedCap WHERE project_name = %s""", [db_backup_proj_name])
+    if not start_date:
+        db.run_insert_query("""INSERT INTO backup_info_RedCap (last_backup) VALUES (%s)""", [datetime(1900, 1, 1)])
+
     only_record_logs = True
     record_logs = grab_logs(db, project, only_record_logs, start_date, end_date)
-
+     
     # dictionary of form names and their variables
     master_form_var_dict = {}
     for var in project.metadata:
@@ -425,16 +457,24 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             master_form_var_dict[var['form_name']].append(var['field_name'])
     for form in [f['instrument_name'] for f in project.export_instruments()]:
         master_form_var_dict[form].append(f'{form}_complete')
-    
+
+    # repeating form collection
+    form_names = [form['instrument_name'] for form in project.export_instruments()]
+    repeating_forms = []
+    if project.export_project_info()['has_repeating_instruments_or_events'] == 1: 
+        rep_forms = [form['form_name'] for form in project.export_repeating_instruments_events()]
+        for name in form_names: 
+            if name in rep_forms:
+                repeating_forms.append(name)
+
     
     # loop through record_logs and add to db
     failed_to_add = []
     for i, log in tqdm(enumerate(record_logs), total=len(record_logs), desc='Adding data logs to db'):
-        if log['details'] == '': continue # no changes to record
-        
-
+        if log['details'] == '': # no changes to record
+            continue 
         # log deleting a record
-        if re.sub(r'\d+$', '', log['action']).strip() == 'Delete record':
+        if 'Delete record' in log['action']:
             patient_name = log['action'].split(' ')[-1].strip()
             patient_id = str(db.run_select_query(f"""SELECT id FROM patients WHERE patient_name = %s""", [patient_name])[0][0])
             db.run_insert_query(f"""UPDATE CRF_RedCap SET deleted = 1 WHERE id_patient = %s""", [patient_id])
@@ -450,41 +490,58 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             patient_id = patient_id[0][0]
 
 
+        details = dict(item.split(" = ") for item in log['details'].split(", "))
         crf_name = None
         for form, vars in master_form_var_dict.items():
             for var in vars:
-                if var in log:
+                if var in details:
                     crf_name = form
         if not crf_name:
-            raise failed_to_add.append((patient_name, log['timestamp'], f'redcap_variables: {log}'))       
+            failed_to_add.append((patient_name, log['timestamp'], f'redcap_variables: {log}'))       
 
 
         instance = None
-        if 'instance' in log['details']:
-            instance = int(log['details'].split('instance')[1].split('=')[1].split(']')[0].strip())
+        if '[instance' in details: # if instance is in log, then its key is [instance in details dictionary
+            instance = int(details['[instance'][:-1])
+        if (instance is None) and (crf_name in repeating_forms):
+            instance = 1
 
 
         crf_row = pd.DataFrame(db.run_select_query(f"""SELECT * FROM CRF_RedCap WHERE id_patient = {patient_id} AND crf_name = \'{crf_name}\' 
-                                    AND instance {'IS NULL' if instance is None else f'= {instance}'} AND deleted = '0'""")) # cant use run_select_query.record here, because ('IS NULL' or '= #') is not a valid sql variable
+                                    AND instance {'IS NULL' if instance is None else f'= {instance}'} AND deleted = '0'""", column_names=True)) # cant use run_select_query.record here, because ('IS NULL' or '= #') is not a valid sql variable
         record_df = export_records_wrapper(project, patient_name, crf_name, instance)
     
 
         if record_df.empty and crf_row.empty: # deleted record in redcap not in db
             continue 
 
-        elif record_df.empty and crf_row: # deleted record in redcap in db
+        elif record_df.empty and not crf_row.empty: # deleted record in redcap in db
             deleted = 1 
-            db.run_insert_query('''UPDATE CRF_RedCap SET deleted = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
+            db.run_insert_query('''UPDATE CRF_RedCap SET deleted = %s WHERE id = %s''', [deleted, str(crf_row['id'].iloc[0])])
 
         elif not record_df.empty: # data to enter
+            # preprocess record_df for data insertion/update
+            irrelevant_columns = {'redcap_repeat_instrument', 'redcap_event_name', 'redcap_repeat_instance'}
+            record_df = record_df.drop(irrelevant_columns, axis=1, errors='ignore')
+            record_df = record_df.melt(var_name='redcap_variable')
+            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable']+')'
+            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable'].str.replace('___', '(')
 
             if not crf_row.empty: # update
                 if f'{crf_name}_status' in record_df.columns.to_list():
                     if record_df[f'{crf_name}_status'].iloc[0] == '4' or record_df[f'{crf_name}_status'].iloc[0] == '5':
                         deleted = 0
                         verified = 1
-                        db.run_insert_query('''UPDATE CRF_RedCap SET verified = %s WHERE id = %s''', [deleted, crf_row['id'].iloc[0]])
-                crf_id = crf_row[0][0]
+                        db.run_insert_query('''UPDATE CRF_RedCap SET verified = %s WHERE id = %s''', [deleted, str(crf_row['id'].iloc[0])])
+                crf_id = crf_row['id'].iloc[0]
+                record_df['id_crf'] = crf_id
+
+                # update CRF_Data_RedCap based on record_df
+                for index, row in record_df.iterrows():
+                    db.run_insert_query(
+                        'UPDATE CRF_Data_RedCap SET value = %s WHERE id_crf = %s AND redcap_variable = %s',
+                        [row['value'], crf_id.item(), row['redcap_variable']]
+                    ) 
 
             elif crf_row.empty: # insert
                 deleted = 0
@@ -494,15 +551,12 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                         verified = 1
                 crf_id = db.run_insert_query('''INSERT INTO CRF_RedCap (id_patient, crf_name, instance, deleted, verified)
                                     VALUES (%s, %s, %s, %s, %s)''', [patient_id, crf_name, instance, deleted, verified])
+                record_df['id_crf'] = crf_id
 
-            # data insertion/update
-            irr_cols = 3 if record_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
-            record_df = record_df[record_df.columns[irr_cols:]]
-            record_df = record_df.melt(var_name='redcap_variable')
-            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable']+')'
-            record_df.loc[record_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = record_df['redcap_variable'].str.replace('___', '(')
-            record_df['id_crf'] = crf_id
-            utils.df_to_db_table(db, record_df, 'CRF_Data_RedCap')
+                # insert record df rows into CRF_Data_RedCap
+                utils.df_to_db_table(db, record_df, 'CRF_Data_RedCap')
+
+            # print('\trecord_df after processed: \n', record_df.to_string())
 
 
 
@@ -627,5 +681,3 @@ if __name__ == '__main__':
 
     # for date in dates:
     #     project_data_to_db(db, project, date[1], date[0])
-
-
