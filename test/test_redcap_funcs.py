@@ -59,6 +59,7 @@ def get_id_patient(db, patient_name):
         )
     return id_patient
 
+
 def create_mock(patient_name, action):
     """Create a mock log based on patient_name and action."""
     # Mock record
@@ -95,7 +96,7 @@ def create_mock(patient_name, action):
     details = details[:-2]
     mock_log["details"] = details
 
-    return {'mock_record': mock_record, 'mock_log': mock_log}
+    return {"mock_record": mock_record, "mock_log": mock_log}
 
 
 """
@@ -134,8 +135,8 @@ def test_delete_record(mocker, db, project):
     """
     # Mock log
     patient_name = "patient_delete"
-    mock = create_mock(patient_name, 'Delete')
-    mock_log = mock['mock_log']
+    mock = create_mock(patient_name, "Delete")
+    mock_log = mock["mock_log"]
     mocker.patch("AMBRA_Backups.redcap_funcs.grab_logs", return_value=[mock_log])
 
     # Create patient and CRF patient
@@ -177,8 +178,8 @@ def test_update_record_not_redcap_not_db(mocker, db, project):
     """
     # Mock log
     patient_name = "patient_not_redcap_not_db"
-    mock = create_mock(patient_name, 'Update')
-    mock_log = mock['mock_log']
+    mock = create_mock(patient_name, "Update")
+    mock_log = mock["mock_log"]
     mocker.patch("AMBRA_Backups.redcap_funcs.grab_logs", return_value=[mock_log])
 
     # Create patient and CRF patient
@@ -249,11 +250,11 @@ def test_update_record_not_redcap_in_db(mocker, db, project):
     id_patient = get_id_patient(db, patient_name)
 
     # Mock
-    mock = create_mock(patient_name, 'Update')
-    mock_log = mock['mock_log']
-    mock_record = mock['mock_record']
-    
-    project.import_records([mock_record]) 
+    mock = create_mock(patient_name, "Update")
+    mock_log = mock["mock_log"]
+    mock_record = mock["mock_record"]
+
+    project.import_records([mock_record])
     # not_in_redcap
     project.delete_records(records=[patient_name])
 
@@ -300,9 +301,9 @@ def test_update_record_in_redcap_not_db(mocker, db, project):
     """
     # Mock
     patient_name = "patient_update_in_redcap_not_db"
-    mock = create_mock(patient_name, 'Update')
-    mock_log = mock['mock_log']
-    mock_record = mock['mock_record']
+    mock = create_mock(patient_name, "Update")
+    mock_log = mock["mock_log"]
+    mock_record = mock["mock_record"]
     mocker.patch("AMBRA_Backups.redcap_funcs.grab_logs", return_value=[mock_log])
 
     # Change the record on redcap based on mock
@@ -312,9 +313,7 @@ def test_update_record_in_redcap_not_db(mocker, db, project):
     id_patient = get_id_patient(db, patient_name)
 
     # Delete patient CRF from CRF_RedCap
-    db.run_insert_query(
-        "DELETE FROM CRF_RedCap WHERE id_patient = %s", [id_patient]
-    )
+    db.run_insert_query("DELETE FROM CRF_RedCap WHERE id_patient = %s", [id_patient])
 
     AMBRA_Backups.redcap_funcs.project_data_to_db(db, project)
 
@@ -329,7 +328,7 @@ def test_update_record_in_redcap_not_db(mocker, db, project):
 
     id_crf = record[0]
     assert record[1] == form_input
-    assert record[2] == 1 
+    assert record[2] == 1
     assert record[3] == 0
     assert record[4] == 0
 
@@ -377,9 +376,9 @@ def test_update_record_in_redcap_in_db(mocker, db, project):
     # Mock log
     patient_name = "test_update_in_redcap_in_db"
     id_patient = get_id_patient(db, patient_name)
-    mock = create_mock(patient_name, 'Update')
-    mock_log = mock['mock_log']
-    mock_record = mock['mock_record']
+    mock = create_mock(patient_name, "Update")
+    mock_log = mock["mock_log"]
+    mock_record = mock["mock_record"]
     mocker.patch("AMBRA_Backups.redcap_funcs.grab_logs", return_value=[mock_log])
 
     # Change the record on redcap based on mock
