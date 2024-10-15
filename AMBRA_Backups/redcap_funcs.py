@@ -569,10 +569,13 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         [db_backup_proj_name],
     )
     if not start_date:
+        start_date = datetime(1900, 1, 1)
         db.run_insert_query(
             """INSERT INTO backup_info_RedCap (last_backup) VALUES (%s)""",
-            [datetime(1900, 1, 1)],
+            [start_date],
         )
+    else:
+        start_date = start_date[0][0]
 
     only_record_logs = True
     record_logs = grab_logs(db, project, only_record_logs, start_date, end_date)
