@@ -577,7 +577,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     else:
         start_date = start_date[0][0]
 
-    only_record_logs = True
+    only_record_logs = True 
     record_logs = grab_logs(db, project, only_record_logs, start_date, end_date)
 
     # dictionary of form names and their variables
@@ -824,8 +824,8 @@ if __name__ == "__main__":
     import AMBRA_Utils
 
     testing = 0
-    db_name = "TESTED"
-    project_name = "TESTED Data Collection"
+    db_name = 'TESTED'
+    project_name = 'TESTED DC'
     # db_name = 'SISTER'
     # project_name = '29423 Vagal - SISTER'
     if testing:
