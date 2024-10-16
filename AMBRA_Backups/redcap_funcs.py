@@ -1,7 +1,6 @@
 import pandas as pd
 import re
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 import logging
 from tqdm import tqdm
@@ -640,9 +639,23 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
         # Process log details from string into dictionary.
         # Example:
-        # - log['details']= "[instance = 2], form2_radio_2 = '1',repeat_instrument_form_complete = '0'"
-        # - details = {'[instance': '2]', 'form2_radio_2' = '1', 'repeat_instrument_form_complete' = '0'}
-        details = dict(item.split(" = ") for item in log["details"].split(", "))
+        # - log['details']= "[instance = 2], form2_radio_2 = '1', text = 'Hello, World'"
+        # - details = {'[instance]': '2', 'form2_radio_2' = '1', 'text' = 'Hello, World'}
+        regex = r"[a-zA-z0-9\_]+? = '.*?'|\[instance = \d+\]"
+        details_list = re.findall(regex, log["details"])
+        details = dict()
+        instance = None
+
+        for detail in details_list:
+            if re.match(r'\[instance = \d+\]', detail):
+                # Get instance number
+                instance = int(re.search(r'\d+', detail).group(0))
+                details['[instance]'] = instance
+            else:
+                detail_split = detail.split(' = ', 1)
+                var = detail_split[0]
+                val = detail_split[1]
+                details[var] = val
 
         crf_name = None
         for form, vars in master_form_var_dict.items():
@@ -654,10 +667,6 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 (patient_name, log["timestamp"], f"redcap_variables: {log}")
             )
 
-        instance = None
-        # if instance is in log, then its key is [instance in details dictionary
-        if "[instance" in details:
-            instance = int(details["[instance"][:-1])
         if (instance is None) and (crf_name in repeating_forms):
             instance = 1
 
