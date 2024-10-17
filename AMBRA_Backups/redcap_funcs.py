@@ -542,7 +542,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
     # try:
 
-    project_name = project.export_project_info()["project_title"]
+    project_name = project.export_project_info()["project_title"].strip()
     db_backup_proj_name = db.run_select_query(
         "SELECT project_name FROM backup_info_RedCap"
     )
