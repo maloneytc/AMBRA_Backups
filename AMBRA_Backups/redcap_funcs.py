@@ -542,10 +542,11 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
     # try:
 
-    project_name = project.export_project_info()["project_title"]
+    project_name = project.export_project_info()["project_title"].strip()
     db_backup_proj_name = db.run_select_query(
         "SELECT project_name FROM backup_info_RedCap"
     )
+    print(project_name, db_backup_proj_name)
     if not db_backup_proj_name:
         db.run_insert_query(
             "INSERT INTO backup_info_RedCap (project_name) VALUES (%s)", [project_name]
@@ -560,7 +561,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         db_backup_proj_name = db_backup_proj_name[0][0]
         if project_name != db_backup_proj_name:
             raise ValueError(
-                f"Live redcap name: {project_name}, database backup name: {db_name}.{db_backup_proj_name}"
+                f"Live redcap name: {project_name}, database backup name: {db_backup_proj_name}"
             )
 
     start_date = db.run_select_query(
