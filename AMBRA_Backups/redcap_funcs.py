@@ -546,7 +546,6 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     db_backup_proj_name = db.run_select_query(
         "SELECT project_name FROM backup_info_RedCap"
     )
-    print(project_name, db_backup_proj_name)
     if not db_backup_proj_name:
         db.run_insert_query(
             "INSERT INTO backup_info_RedCap (project_name) VALUES (%s)", [project_name]
