@@ -560,7 +560,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         db_backup_proj_name = db_backup_proj_name[0][0]
         if project_name != db_backup_proj_name:
             raise ValueError(
-                f"Live redcap name: {project_name}, database backup name: {db_name}.{db_backup_proj_name}"
+                f"Live redcap name: {project_name}, database backup name: {db.db_name}.{db_backup_proj_name}"
             )
 
     start_date = db.run_select_query(
@@ -745,52 +745,6 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
                 # insert record df rows into CRF_Data_RedCap
                 utils.df_to_db_table(db, record_df, "CRF_Data_RedCap")
-
-            # print('\trecord_df after processed: \n', record_df.to_string())
-
-        # try to grab crf_row from patient, if none insert new crf_row
-        # if exists, check if verified needs updated
-        # if len(crf_row) == 0:
-        #     if f'{crf_name}_status' in record_df.columns.to_list():
-        #         if record_df[f'{crf_name}_status'].iloc[0] == '4' or record_df[f'{crf_name}_status'].iloc[0] == '5':
-        #             verified = 1
-        #         else:
-        #             verified = 0
-        #     else:
-        #         verified = 0
-
-        #     crf_id = db.run_insert_query(f"""INSERT INTO CRF_RedCap (id_patient, crf_name, instance, verified, deleted) VALUES
-        #                                     (%s, %s, {'NULL' if instance is None else instance}, %s, %s)""", [patient_id, crf_name, verified, '0'])
-
-        #     irr_cols = 3 if form_df.columns[1] == 'redcap_repeat_instrument' else 1 # number of irrelevant fields ie. record_id, redcap_repeat_instrument, redcap_repeat_instance
-        #     form_df = form_df[form_df.columns[irr_cols:]]
-        #     form_df = form_df.melt(var_name='redcap_variable')
-        #     form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable']+')'
-        #     form_df.loc[form_df['redcap_variable'].str.contains('___'), 'redcap_variable'] = form_df['redcap_variable'].str.replace('___', '(')
-        #     form_df['id_crf'] = crf_id
-
-        #     # inserting data
-        #     utils.df_to_db_table(db, form_df, 'CRF_Data_RedCap')
-
-        # # if crf does exist, grab crf_id, and check if db_verified needs updated
-        # else:
-        #     crf_id = crf_row[0][0]
-        #     if f'{crf_name}_status' in ques_value_dict.keys():
-        #         if ques_value_dict[f'{crf_name}_status'] == '4' or ques_value_dict[f'{crf_name}_status'] == '5':
-        #             verified = 1
-        #         else:
-        #             verified = 0
-        #         db.run_insert_query(f"UPDATE CRF_RedCap SET verified = %s WHERE id = %s", [verified, crf_row[0][0]])
-        #         ques_value_dict.pop(f'{crf_name}_status')
-
-        #     # insert data into crf_data_redcap
-        #     for key, value in ques_value_dict.items():
-        #         db.run_insert_query("""
-        #         INSERT INTO CRF_Data_RedCap (id_crf, value, redcap_variable)
-        #         VALUES (%s, %s, %s)
-        #         ON DUPLICATE KEY UPDATE value=%s;
-        #         """, (crf_id, value, key,
-        #                 value))
 
     # After trying to add all the logs, if there are any logs with questions not attached
     # to a current crf (outdated variable), they will be printed to an error string
