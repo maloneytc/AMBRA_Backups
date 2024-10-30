@@ -706,16 +706,15 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             ] = record_df["redcap_variable"].str.replace("___", "(")
 
             if not crf_row.empty:  # update
-                if f"{crf_name}_status" in record_df.columns.to_list():
+                if f"{crf_name}_status" in record_df['redcap_variable'].to_list():
                     if (
-                        record_df[f"{crf_name}_status"].iloc[0] == "4"
-                        or record_df[f"{crf_name}_status"].iloc[0] == "5"
+                        record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "4"
+                        or record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "5"
                     ):
-                        deleted = 0
                         verified = 1
                         db.run_insert_query(
                             """UPDATE CRF_RedCap SET verified = %s WHERE id = %s""",
-                            [deleted, str(crf_row["id"].iloc[0])],
+                            [verified, str(crf_row["id"].iloc[0])],
                         )
                 crf_id = crf_row["id"].iloc[0]
                 record_df["id_crf"] = crf_id
@@ -732,8 +731,8 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 verified = 0
                 if f"{crf_name}_status" in record_df.columns.to_list():
                     if (
-                        record_df[f"{crf_name}_status"].iloc[0] == "4"
-                        or record_df[f"{crf_name}_status"].iloc[0] == "5"
+                        record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "4"
+                        or record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "5"
                     ):
                         verified = 1
                 crf_id = db.run_insert_query(
