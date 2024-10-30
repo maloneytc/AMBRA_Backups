@@ -773,8 +773,6 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     # except Exception as e:
     #     print(f"Error backing up RedCap data: {e}")
 
-    # if export successful, update the last export time
-    project_name = project.export_project_info()["project_title"]
     db.run_insert_query(
         "UPDATE backup_info_RedCap SET last_backup = %s WHERE project_name = %s",
         [datetime.now(), project_name],
@@ -787,8 +785,8 @@ if __name__ == "__main__":
     import AMBRA_Utils
 
     testing = 0
-    db_name = 'TESTED'
-    project_name = 'TESTED DC'
+    db_name = 'CAPTIVA'
+    project_name = 'CAPTIVA DC'
     # db_name = 'SISTER'
     # project_name = '29423 Vagal - SISTER'
     if testing:
@@ -799,6 +797,8 @@ if __name__ == "__main__":
     else:
         db = AMBRA_Backups.database.Database(db_name)
         project = get_redcap_project(project_name)
+
+    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project)
 
     # manual backup
     # start_date = datetime(2023, 1, 1)
