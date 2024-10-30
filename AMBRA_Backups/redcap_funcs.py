@@ -729,7 +729,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             elif crf_row.empty:  # insert
                 deleted = 0
                 verified = 0
-                if f"{crf_name}_status" in record_df.columns.to_list():
+                if f"{crf_name}_status" in record_df['redcap_variable'].to_list():
                     if (
                         record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "4"
                         or record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "5"
