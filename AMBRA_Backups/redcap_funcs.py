@@ -719,12 +719,24 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 crf_id = crf_row["id"].iloc[0]
                 record_df["id_crf"] = crf_id
 
-                # update CRF_Data_RedCap based on record_df
-                for index, row in record_df.iterrows():
-                    db.run_insert_query(
-                        "UPDATE CRF_Data_RedCap SET value = %s WHERE id_crf = %s AND redcap_variable = %s",
-                        [row["value"], crf_id.item(), row["redcap_variable"]],
-                    )
+                db_vars = db.run_select_query("""SELECT redcap_variable FROM CRF_Data_RedCap WHERE id_crf = %s""", [crf_id.item()])
+                db_vars = [v[0] for v in db_vars]
+                for _, row in record_df.iterrows():
+
+                    if row['redcap_variable'] in db_vars:
+                        db.run_insert_query(
+                            "UPDATE CRF_Data_RedCap SET value = %s WHERE id_crf = %s AND redcap_variable = %s",
+                            [row["value"], crf_id.item(), row["redcap_variable"]],
+                        )
+                    else:
+                        # this condition is from a previous method of inserting into the database only using logs. 
+                        # The new(current 10/30/24) method initializes data into the data table with every value, the logs only used fields that were filled out.
+                        # after api initializations crf data, the data is only updated, not inserted. So existing crf data before this implementation will never
+                        # have their new values inserted, thus this else condition inserts the missing data
+                        db.run_insert_query(
+                            """INSERT INTO CRF_Data_RedCap (id_crf, value, redcap_variable) VALUES (%s, %s, %s)""",
+                            [crf_id.item(), row["value"], row["redcap_variable"]],
+                        )
 
             elif crf_row.empty:  # insert
                 deleted = 0
