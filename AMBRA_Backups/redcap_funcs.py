@@ -721,7 +721,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
                 db_vars = db.run_select_query("""SELECT redcap_variable FROM CRF_Data_RedCap WHERE id_crf = %s""", [crf_id.item()])
                 db_vars = [v[0] for v in db_vars]
-                for index, row in record_df.iterrows():
+                for _, row in record_df.iterrows():
 
                     if row['redcap_variable'] in db_vars:
                         db.run_insert_query(
@@ -730,9 +730,9 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                         )
                     else:
                         # this condition is from a previous method of inserting into the database only using logs. 
-                        # The new(current 10/30/24) method initializes data into the data table with every value, the logs only used what was filled out.
-                        # after api initializations crf data is only updated, not inserted on. So existing crf data before this implementation will never
-                        # have their new values inserted, thus this else condition
+                        # The new(current 10/30/24) method initializes data into the data table with every value, the logs only used fields that were filled out.
+                        # after api initializations crf data, the data is only updated, not inserted. So existing crf data before this implementation will never
+                        # have their new values inserted, thus this else condition inserts the missing data
                         db.run_insert_query(
                             """INSERT INTO CRF_Data_RedCap (id_crf, value, redcap_variable) VALUES (%s, %s, %s)""",
                             [crf_id.item(), row["value"], row["redcap_variable"]],
