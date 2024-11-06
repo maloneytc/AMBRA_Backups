@@ -641,7 +641,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         # Example:
         # - log['details']= "[instance = 2], form2_radio_2 = '1', text = 'Hello, World'"
         # - details = {'[instance]': '2', 'form2_radio_2' = '1', 'text' = 'Hello, World'}
-        regex = r"[a-zA-z0-9\_]+? = '.*?'|\[instance = \d+\]"
+        regex = r"[a-zA-z0-9\_\(_)]+? = '.*?'|\[instance = \d+\]"
         details_list = re.findall(regex, log["details"])
         details = dict()
         instance = None
