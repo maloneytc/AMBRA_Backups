@@ -666,6 +666,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             failed_to_add.append(
                 (patient_name, log["timestamp"], f"redcap_variables: {log}")
             )
+            continue
 
         if (instance is None) and (crf_name in repeating_forms):
             instance = 1
