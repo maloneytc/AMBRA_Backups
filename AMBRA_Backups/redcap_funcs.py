@@ -641,7 +641,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         # Example:
         # - log['details']= "[instance = 2], form2_radio_2 = '1', text = 'Hello, World'"
         # - details = {'[instance]': '2', 'form2_radio_2' = '1', 'text' = 'Hello, World'}
-        regex = r"[a-zA-z0-9\_\(_)]+? = '.*?'|\[instance = \d+\]"
+        regex = r"[a-zA-z0-9\_\(\)\.]+? = '.*?'|\[instance = \d+\]"
         details_list = re.findall(regex, log["details"])
         details = dict()
         instance = None
@@ -658,10 +658,14 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 details[var] = val
 
         crf_name = None
+
+        # Get CRF
         for form, vars in master_form_var_dict.items():
-            for var in vars:
-                if var in details:
-                    crf_name = form
+            for form_var in vars:
+                regex = rf"{form_var}(.*)"
+                for detail_var in details:
+                    if detail_var.search(regex, form_var):
+                        crf_name = form
         if not crf_name:
             failed_to_add.append(
                 (patient_name, log["timestamp"], f"redcap_variables: {log}")
