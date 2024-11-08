@@ -774,9 +774,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             failed_string = failed_string + "------------\n"
             failed_string = failed_string + f"Patient_name: {log[0]}\n"
             failed_string = failed_string + f"Date of redcap entry: {log[1]}\n"
-            failed_string = failed_string + f"Question-values:\n"
-            for var in log[2]:
-                failed_string = failed_string + f"{var} : {log[2][var]}\n"
+            failed_string = failed_string + f"REDCap variable(s) : {log[2]}\n"
 
         # this class is a solution I found to get the failed_string to print newline characters
         class KeyErrorMessage(str):
