@@ -662,9 +662,9 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         # Get CRF
         for form, vars in master_form_var_dict.items():
             for form_var in vars:
-                regex = rf"{form_var}(.*)"
+                regex = rf"^{form_var}(\([a-zA-z0-9]*\.?[a-zA-z0-9]*\))?$" # Handles multi choice var
                 for detail_var in details:
-                    if detail_var.search(regex, form_var):
+                    if re.fullmatch(regex, detail_var):
                         crf_name = form
         if not crf_name:
             failed_to_add.append(
