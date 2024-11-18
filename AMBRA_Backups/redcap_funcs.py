@@ -727,7 +727,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
         # Process log details from string into dictionary.
         instance = None
-        details = extract_details(log["details"])
+        details = extract_details(log["details"] + ',')
         crf_name = None
 
         # Get CRF
