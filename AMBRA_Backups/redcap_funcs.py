@@ -480,21 +480,109 @@ def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
             start_date = start_date[0][1]
     if end_date is None:
         end_date = datetime.now()
-    logs = project.export_logging(begin_time=start_date, end_time=end_date)
+    
+    if not only_record_logs:
+        logs = project.export_logging(begin_time=start_date, end_time=end_date)
+   
+    else:
+        log_add = project.export_logging(
+            begin_time=start_date, 
+            end_time=end_date, 
+            log_type='record_add',
+        )
+        log_edit = project.export_logging(
+            begin_time=start_date, 
+            end_time=end_date, 
+            log_type='record_edit',
+        )
+        log_delete = project.export_logging(
+            begin_time=start_date, 
+            end_time=end_date, 
+            log_type='record_delete',
+        )
 
-    if only_record_logs:
-        # getting logs that modify records
-        record_action = ["Update record", "Create record", "Delete record"]
-        record_logs = [
-            log
-            for log in logs
-            if re.sub(r"\d+$", "", log["action"]).strip() in record_action
-        ]
-        record_logs.reverse()  # list starts with most recent. Flipping order to update chronologically
-        logs = record_logs
+        logs = log_add + log_delete + log_edit
+        logs.sort(key=lambda log: datetime.strptime(log['timestamp'], '%Y-%m-%d %H:%M'))
 
     return logs
 
+def extract_details(details):
+    '''
+    Extract a dictionary details from log['details']
+
+    - left right pointer
+    - left pointer indicates start of info, right pointer end of info
+    - keep a list of stuff like quotes to keep in track the closign quotes
+    - right pointer must be at the ending quote (except when it's the ~checked~ case
+    - set left pointer to be at next thing always
+    '''
+    
+    n = len(details)
+    details_dict = dict()
+    if n == 1:
+        return details_dict
+    l = 0
+    r = 1
+
+    while r < n:
+        # If the current var is [instance = int]
+        if details[l] == '[':
+            check = details[l:l+12]
+            if check == '[instance = ':
+                substring = details[l:]
+                start = substring.index('= ') + 2 + l
+                end = substring.index(']') + l
+                details_dict['[instance]'] = int(details[start:end])
+                r = end + 1
+            else:
+                raise Exception("This case should not be possible")
+        
+        # For regular variables 
+        else:
+            # Extract variable
+            substring = details[l:]
+            end_var = substring.index(' = ') + l
+            variable = details[l:end_var]
+
+            # Find value attached to variable
+            start_val = end_var + 3
+            r = start_val + 1
+
+            if details[start_val] == "'":
+                found_val = False
+                while not found_val:
+                    if r == n:
+                        found_val = True
+                        continue
+                    current_r = details[r]
+                    
+                    # If found potential enclosing single quote
+                    if current_r == "'": 
+                        # Check if next character is a comma (eg `q1001 = '2', q1002 = '3'`)
+                        next_chr = details[r+1]
+                        r += 1
+
+                        # If comma and correct number of quotes so far, then assume enclosing quote
+                        if next_chr == ",":
+                            found_val = True
+                            continue
+                    # Else keep going
+                    else:
+                        r += 1
+
+            # For cases like `q1003 = checked`
+            else:
+                substring = details[start_val:]
+                r = substring.index(',') + start_val
+            
+            val = details[start_val:r]
+            details_dict[variable] = val
+
+        l = r + 2
+        r = l + 1
+
+    return details_dict
+                                
 
 def export_records_wrapper(project, patient_name, crf_name, instance=None):
     """
@@ -503,10 +591,10 @@ def export_records_wrapper(project, patient_name, crf_name, instance=None):
     that residual.
     Also included an instance parameter
     """
-
     form_df = pd.DataFrame(
         project.export_records(records=[patient_name], forms=[crf_name])
     )
+
     if form_df.empty:
         return form_df
     form_df = form_df[form_df[crf_name + "_complete"] != ""]
@@ -638,25 +726,8 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             patient_id = patient_id[0][0]
 
         # Process log details from string into dictionary.
-        # Example:
-        # - log['details']= "[instance = 2], form2_radio_2 = '1', text = 'Hello, World'"
-        # - details = {'[instance]': '2', 'form2_radio_2' = '1', 'text' = 'Hello, World'}
-        regex = r"[a-zA-z0-9\_\(\)\.]+? = '.*?'|\[instance = \d+\]"
-        details_list = re.findall(regex, log["details"])
-        details = dict()
         instance = None
-
-        for detail in details_list:
-            if re.match(r'\[instance = \d+\]', detail):
-                # Get instance number
-                instance = int(re.search(r'\d+', detail).group(0))
-                details['[instance]'] = instance
-            else:
-                detail_split = detail.split(' = ', 1)
-                var = detail_split[0]
-                val = detail_split[1]
-                details[var] = val
-
+        details = extract_details(log["details"])
         crf_name = None
 
         # Get CRF
