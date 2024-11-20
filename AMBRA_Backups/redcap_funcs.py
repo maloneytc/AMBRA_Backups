@@ -430,41 +430,6 @@ def comp_schema_cap_db(db_name, project_name):
         raise Exception("Please handle the above discrepancies")
 
 
-def details_to_dict(log_details):
-    """
-    Converts log details string into dictionary of questions and values
-    Splits on '=' because ',' can be used in comment fields, so not reliable to split on
-    """
-
-    # repalcements
-    log_details = log_details.replace("unchecked", "0").replace("checked", "1")
-
-    questions = {}
-    strings = log_details.split("=")
-
-    if len(strings) == 2:
-        questions[strings[0].strip()] = strings[1].strip().strip("'")
-        return questions
-
-    for i in range(0, len(strings) - 1):
-        if i == 0:
-            questions[strings[i].strip()] = ",".join(
-                strings[i + 1].split(",")[:-1]
-            ).strip()
-        elif i == len(strings) - 2:
-            questions[strings[i].split(",")[-1].strip()] = strings[i + 1].strip()
-        else:
-            questions[strings[i].split(",")[-1].strip()] = ",".join(
-                strings[i + 1].split(",")[:-1]
-            ).strip()
-
-    # removing extra 's from questions without removing purposeful 's
-    for question in questions:
-        questions[question] = questions[question].strip("'")
-
-    return questions
-
-
 def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
     """
     Extracts logs from redcap from start_date to end_date
@@ -870,8 +835,8 @@ if __name__ == "__main__":
     import AMBRA_Utils
 
     testing = 0
-    db_name = 'CAPTIVA'
-    project_name = 'CAPTIVA DC'
+    db_name = 'CAPTIVA_MRI'
+    project_name = 'CAPTIVA MRI DC'
     # db_name = 'SISTER'
     # project_name = '29423 Vagal - SISTER'
     if testing:
@@ -882,8 +847,8 @@ if __name__ == "__main__":
     else:
         db = AMBRA_Backups.database.Database(db_name)
         project = get_redcap_project(project_name)
-
-    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project)
+    date = datetime(2024, 11, 14)
+    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project, start_date=date)
 
     # manual backup
     # start_date = datetime(2023, 1, 1)
