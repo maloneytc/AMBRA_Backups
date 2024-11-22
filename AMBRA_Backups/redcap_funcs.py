@@ -135,7 +135,7 @@ def backup_project(project_name, url, api_key, output_dir, bckp_files=True):
         repeating_out = output_dir.joinpath(f"{project_name}_repeating.json")
         with open(repeating_out, "w", encoding="utf-8") as f:
             json.dump(repeating_json, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
 
