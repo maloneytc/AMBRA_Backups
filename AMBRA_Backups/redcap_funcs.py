@@ -567,7 +567,13 @@ def export_records_wrapper(project, patient_name, crf_name, instance=None):
         if "redcap_repeat_instrument" not in form_df.columns:
             raise ValueError(f"""Project '{project.export_project_info()['project_title']}' does not have repeat instances.
                                \npatient_name: {patient_name}, crf_name: {crf_name}""")
-        if instance not in form_df["redcap_repeat_instance"].to_list():
+        
+        instances_list = form_df["redcap_repeat_instance"].to_list()
+        if instances_list == [''] or instances_list == []:
+            # If there are no instances return the empty form.
+            return form_df
+        
+        if instance not in instances_list:
             raise ValueError(f"""Instance: {instance} not of available instances: {form_df['redcap_repeat_instance'].to_list()}
                                \nIn project: {project.export_project_info()['project_title']}, crf_name: {crf_name}, patient_name: {patient_name}""")
         form_df = form_df[form_df["redcap_repeat_instance"] == instance]
