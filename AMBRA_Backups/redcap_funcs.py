@@ -135,7 +135,7 @@ def backup_project(project_name, url, api_key, output_dir, bckp_files=True):
         repeating_out = output_dir.joinpath(f"{project_name}_repeating.json")
         with open(repeating_out, "w", encoding="utf-8") as f:
             json.dump(repeating_json, f, ensure_ascii=False, indent=4)
-    except Exception:
+    except:
         pass
 
 
@@ -190,7 +190,7 @@ def get_project_schema(project_name, form):
     df["redcap_variable"] = df["export_field_name"]
 
     # This question_order functionality is only approximate. Should be double checked after schena insertion
-    df["question_order"] = df["export_field_name"].str.extract(right"(\d+)")
+    df["question_order"] = df["export_field_name"].str.extract(r"(\d+)")
 
     def apply_decimals(group):
         i = 0
@@ -567,13 +567,7 @@ def export_records_wrapper(project, patient_name, crf_name, instance=None):
         if "redcap_repeat_instrument" not in form_df.columns:
             raise ValueError(f"""Project '{project.export_project_info()['project_title']}' does not have repeat instances.
                                \npatient_name: {patient_name}, crf_name: {crf_name}""")
-        
-        instances_list = form_df["redcap_repeat_instance"].to_list()
-        if instances_list == [''] or instances_list == []:
-            # If there are no instances return the empty form.
-            return form_df
-        
-        if instance not in instances_list:
+        if instance not in form_df["redcap_repeat_instance"].to_list():
             raise ValueError(f"""Instance: {instance} not of available instances: {form_df['redcap_repeat_instance'].to_list()}
                                \nIn project: {project.export_project_info()['project_title']}, crf_name: {crf_name}, patient_name: {patient_name}""")
         form_df = form_df[form_df["redcap_repeat_instance"] == instance]
