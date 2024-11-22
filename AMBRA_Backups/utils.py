@@ -6,7 +6,6 @@ import subprocess
 import os
 import shutil
 import pandas as pd
-import numpy as np
 import hashlib
 
 
@@ -17,10 +16,10 @@ def hash_file(file_path):
     """
     file_path = Path(file_path)
     if not file_path.is_file():
-        raise Exception('Only files can be hashed.')
+        raise Exception("Only files can be hashed.")
 
     hasher = hashlib.md5()
-    with open(file_path, 'rb') as fopen:
+    with open(file_path, "rb") as fopen:
         buf = fopen.read()
         hasher.update(buf)
 
@@ -38,13 +37,16 @@ def extract(zip_file):
 
     extraction_directory = zip_file.parent.joinpath(zip_file.stem)
     if extraction_directory.exists():
-        logging.warning(f'Extracted directory {extraction_directory} already exists. Extraction skipped.')
+        logging.warning(
+            f"Extracted directory {extraction_directory} already exists. Extraction skipped."
+        )
     else:
-        logging.info(f'Extracting zip file to {extraction_directory}')
-        with zipfile.ZipFile(zip_file, 'r') as zip:
+        logging.info(f"Extracting zip file to {extraction_directory}")
+        with zipfile.ZipFile(zip_file, "r") as zip:
             zip.extractall(path=extraction_directory)
 
     return extraction_directory
+
 
 # ------------------------------------------------------------------------------
 def convert_nifti(dicom_directory, output_directory):
@@ -53,25 +55,36 @@ def convert_nifti(dicom_directory, output_directory):
     files to the output_directory path.
     """
     if platform == "linux" or platform == "linux2":
-        dcm2nii_path = Path(__file__).parent.parent.joinpath("ExternalPrograms","dcm2niix_linux")
+        dcm2nii_path = Path(__file__).parent.parent.joinpath(
+            "ExternalPrograms", "dcm2niix_linux"
+        )
     elif platform == "darwin":
-        dcm2nii_path = Path(__file__).parent.parent.joinpath("ExternalPrograms","dcm2niix")
-        
+        dcm2nii_path = Path(__file__).parent.parent.joinpath(
+            "ExternalPrograms", "dcm2niix"
+        )
+
     if not dcm2nii_path.exists():
-        raise Exception(f'Could not locate dcm2nii at {dcm2nii_path}')
+        raise Exception(f"Could not locate dcm2nii at {dcm2nii_path}")
 
     output_directory = Path(output_directory)
     if not output_directory.exists():
         os.makedirs(output_directory)
 
-    dcm2nii = [str(dcm2nii_path),
-               "-b", "y",
-               "-f", "%d_%z_%s_%j",
-               "-z", "y",
-               "-o", str(output_directory),
-               str(dicom_directory)]
+    dcm2nii = [
+        str(dcm2nii_path),
+        "-b",
+        "y",
+        "-f",
+        "%d_%z_%s_%j",
+        "-z",
+        "y",
+        "-o",
+        str(output_directory),
+        str(dicom_directory),
+    ]
 
     subprocess.call(dcm2nii)
+
 
 # ------------------------------------------------------------------------------
 def extract_and_convert(zip_file, output_directory, cleanup=False):
@@ -89,8 +102,9 @@ def extract_and_convert(zip_file, output_directory, cleanup=False):
     convert_nifti(extraction_directory, output_directory)
 
     if extraction_directory.exists() and cleanup:
-        logging.info(f'Removing {extraction_directory}.')
+        logging.info(f"Removing {extraction_directory}.")
         shutil.rmtree(extraction_directory)
+
 
 # ------------------------------------------------------------------------------
 def html_to_dataframe(html):
@@ -104,12 +118,13 @@ def html_to_dataframe(html):
 
     report_df = pd.DataFrame()
     for report in reports_df:
-        report = report[[0,1,3]].T
+        report = report[[0, 1, 3]].T
         ## XXX: Not sure if this is the right approach yet - I may not want to transpose
         # I also may want to add in the table name as an additional row/column
         ## XXX: Merge into report_df
 
     return report_df
+
 
 # ------------------------------------------------------------------------------
 def strip_ext(input):
@@ -118,13 +133,13 @@ def strip_ext(input):
     """
     stem = Path(input.name)
     suffix = stem.suffix
-    if suffix == '.gz':
-        stem = stem.with_suffix('')
+    if suffix == ".gz":
+        stem = stem.with_suffix("")
         suffix = stem.suffix
 
-    assert stem.suffix == '.nii'
+    assert stem.suffix == ".nii"
 
-    return stem.with_suffix('')
+    return stem.with_suffix("")
 
 
 # ------------------------------------------------------------------------------
@@ -135,16 +150,18 @@ def df_to_db_table(db, df, table_name):
     """
 
     # if table not not in db, error
-    if table_name not in [table[0] for table in db.run_select_query('SHOW TABLES')]:
-        raise ValueError(f'Table {table_name} not in database')
-    
+    if table_name not in [table[0] for table in db.run_select_query("SHOW TABLES")]:
+        raise ValueError(f"Table {table_name} not in database")
 
     # all df's columns must be in table
-    table_columns = [col[0] for col in db.run_select_query(f"SHOW COLUMNS FROM {table_name}") if col[0] != 'id']
+    table_columns = [
+        col[0]
+        for col in db.run_select_query(f"SHOW COLUMNS FROM {table_name}")
+        if col[0] != "id"
+    ]
     if not set(df.columns) <= set(table_columns):
-        raise ValueError(f'''Columns in dataframe not in table {table_name}:
-                         \ndf columns: \n{df.columns.to_list()}\n table columns: \n{table_columns}''')
-    
+        raise ValueError(f"""Columns in dataframe not in table {table_name}:
+                         \ndf columns: \n{df.columns.to_list()}\n table columns: \n{table_columns}""")
 
     # Change 6/28/24: Think it would make sense to allow single quotes into the db
     #                 Wouldnt want to handle strings with single quotes in them later
@@ -152,19 +169,25 @@ def df_to_db_table(db, df, table_name):
     # if df.applymap(lambda x: isinstance(x, str) and "'" in x and "\\'" not in x).any().any():
     #     raise ValueError('Dataframe contains single quotes. Please remove them before inserting into database.')
 
-
     columns = df.columns.tolist()
-    columns = '('+', '.join(columns)+')'
-    values_string = ', '.join(['('+','.join(['%s']*len(df.columns))+')']*len(df))
-    update_string = ', '.join([f'{column}=VALUES({column})' for column in df.columns[1:]])
+    columns = "(" + ", ".join(columns) + ")"
+    values_string = ", ".join(
+        ["(" + ",".join(["%s"] * len(df.columns)) + ")"] * len(df)
+    )
+    update_string = ", ".join(
+        [f"{column}=VALUES({column})" for column in df.columns[1:]]
+    )
     values = df.values.tolist()
     values = [item for sublist in values for item in sublist]
 
-    ret = db.run_insert_query(f"""INSERT INTO {table_name} 
+    ret = db.run_insert_query(
+        f"""INSERT INTO {table_name} 
                                       {columns} 
                                   VALUES 
                                       {values_string}
                                   ON DUPLICATE KEY UPDATE 
-                                      {update_string}""", values)
+                                      {update_string}""",
+        values,
+    )
 
     return ret

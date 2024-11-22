@@ -7,7 +7,6 @@ from tqdm import tqdm
 from bs4 import BeautifulSoup
 from redcap import Project
 import configparser
-import sys
 import json
 import numpy as np
 
@@ -135,7 +134,7 @@ def backup_project(project_name, url, api_key, output_dir, bckp_files=True):
         repeating_out = output_dir.joinpath(f"{project_name}_repeating.json")
         with open(repeating_out, "w", encoding="utf-8") as f:
             json.dump(repeating_json, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
 
@@ -430,41 +429,6 @@ def comp_schema_cap_db(db_name, project_name):
         raise Exception("Please handle the above discrepancies")
 
 
-def details_to_dict(log_details):
-    """
-    Converts log details string into dictionary of questions and values
-    Splits on '=' because ',' can be used in comment fields, so not reliable to split on
-    """
-
-    # repalcements
-    log_details = log_details.replace("unchecked", "0").replace("checked", "1")
-
-    questions = {}
-    strings = log_details.split("=")
-
-    if len(strings) == 2:
-        questions[strings[0].strip()] = strings[1].strip().strip("'")
-        return questions
-
-    for i in range(0, len(strings) - 1):
-        if i == 0:
-            questions[strings[i].strip()] = ",".join(
-                strings[i + 1].split(",")[:-1]
-            ).strip()
-        elif i == len(strings) - 2:
-            questions[strings[i].split(",")[-1].strip()] = strings[i + 1].strip()
-        else:
-            questions[strings[i].split(",")[-1].strip()] = ",".join(
-                strings[i + 1].split(",")[:-1]
-            ).strip()
-
-    # removing extra 's from questions without removing purposeful 's
-    for question in questions:
-        questions[question] = questions[question].strip("'")
-
-    return questions
-
-
 def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
     """
     Extracts logs from redcap from start_date to end_date
@@ -480,34 +444,35 @@ def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
             start_date = start_date[0][1]
     if end_date is None:
         end_date = datetime.now()
-    
+
     if not only_record_logs:
         logs = project.export_logging(begin_time=start_date, end_time=end_date)
-   
+
     else:
         log_add = project.export_logging(
-            begin_time=start_date, 
-            end_time=end_date, 
-            log_type='record_add',
+            begin_time=start_date,
+            end_time=end_date,
+            log_type="record_add",
         )
         log_edit = project.export_logging(
-            begin_time=start_date, 
-            end_time=end_date, 
-            log_type='record_edit',
+            begin_time=start_date,
+            end_time=end_date,
+            log_type="record_edit",
         )
         log_delete = project.export_logging(
-            begin_time=start_date, 
-            end_time=end_date, 
-            log_type='record_delete',
+            begin_time=start_date,
+            end_time=end_date,
+            log_type="record_delete",
         )
 
         logs = log_add + log_delete + log_edit
-        logs.sort(key=lambda log: datetime.strptime(log['timestamp'], '%Y-%m-%d %H:%M'))
+        logs.sort(key=lambda log: datetime.strptime(log["timestamp"], "%Y-%m-%d %H:%M"))
 
     return logs
 
+
 def extract_details(details):
-    '''
+    """
     Extract a dictionary details from log['details']
 
     - left right pointer
@@ -515,52 +480,52 @@ def extract_details(details):
     - keep a list of stuff like quotes to keep in track the closign quotes
     - right pointer must be at the ending quote (except when it's the ~checked~ case
     - set left pointer to be at next thing always
-    '''
-    
+    """
+
     n = len(details)
     details_dict = dict()
     if n == 1:
         return details_dict
-    l = 0
-    r = 1
+    left = 0
+    right = 1
 
-    while r < n:
+    while right < n:
         # If the current var is [instance = int]
-        if details[l] == '[':
-            check = details[l:l+12]
-            if check == '[instance = ':
-                substring = details[l:]
-                start = substring.index('= ') + 2 + l
-                end = substring.index(']') + l
-                details_dict['[instance]'] = int(details[start:end])
-                r = end + 1
+        if details[left] == "[":
+            check = details[left : left + 12]
+            if check == "[instance = ":
+                substring = details[left:]
+                start = substring.index("= ") + 2 + left
+                end = substring.index("]") + left
+                details_dict["[instance]"] = int(details[start:end])
+                right = end + 1
             else:
                 raise Exception("This case should not be possible")
-        
-        # For regular variables 
+
+        # For regular variables
         else:
             # Extract variable
-            substring = details[l:]
-            end_var = substring.index(' = ') + l
-            variable = details[l:end_var]
+            substring = details[left:]
+            end_var = substring.index(" = ") + left
+            variable = details[left:end_var]
 
             # Find value attached to variable
             start_val = end_var + 3
-            r = start_val + 1
+            right = start_val + 1
 
             if details[start_val] == "'":
                 found_val = False
                 while not found_val:
-                    if r == n:
+                    if right == n:
                         found_val = True
                         continue
-                    current_r = details[r]
-                    
+                    current_r = details[right]
+
                     # If found potential enclosing single quote
-                    if current_r == "'": 
+                    if current_r == "'":
                         # Check if next character is a comma (eg `q1001 = '2', q1002 = '3'`)
-                        next_chr = details[r+1]
-                        r += 1
+                        next_chr = details[right + 1]
+                        right += 1
 
                         # If comma and correct number of quotes so far, then assume enclosing quote
                         if next_chr == ",":
@@ -568,21 +533,21 @@ def extract_details(details):
                             continue
                     # Else keep going
                     else:
-                        r += 1
+                        right += 1
 
             # For cases like `q1003 = checked`
             else:
                 substring = details[start_val:]
-                r = substring.index(',') + start_val
-            
-            val = details[start_val:r]
+                right = substring.index(",") + start_val
+
+            val = details[start_val:right]
             details_dict[variable] = val
 
-        l = r + 2
-        r = l + 1
+        left = right + 2
+        right = left + 1
 
     return details_dict
-                                
+
 
 def export_records_wrapper(project, patient_name, crf_name, instance=None):
     """
@@ -602,13 +567,7 @@ def export_records_wrapper(project, patient_name, crf_name, instance=None):
         if "redcap_repeat_instrument" not in form_df.columns:
             raise ValueError(f"""Project '{project.export_project_info()['project_title']}' does not have repeat instances.
                                \npatient_name: {patient_name}, crf_name: {crf_name}""")
-        
-        instances_list = form_df["redcap_repeat_instance"].to_list()
-        if instances_list == [''] or instances_list == []:
-            # If there are no instances return the empty form.
-            return form_df
-        
-        if instance not in instances_list:
+        if instance not in form_df["redcap_repeat_instance"].to_list():
             raise ValueError(f"""Instance: {instance} not of available instances: {form_df['redcap_repeat_instance'].to_list()}
                                \nIn project: {project.export_project_info()['project_title']}, crf_name: {crf_name}, patient_name: {patient_name}""")
         form_df = form_df[form_df["redcap_repeat_instance"] == instance]
@@ -670,7 +629,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
     else:
         start_date = start_date[0][0]
 
-    only_record_logs = True 
+    only_record_logs = True
     record_logs = grab_logs(db, project, only_record_logs, start_date, end_date)
 
     # dictionary of form names and their variables
@@ -708,12 +667,12 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             patient_name = log["action"].split(" ")[-1].strip()
             patient_id = str(
                 db.run_select_query(
-                    f"""SELECT id FROM patients WHERE patient_name = %s""",
+                    """SELECT id FROM patients WHERE patient_name = %s""",
                     [patient_name],
                 )[0][0]
             )
             db.run_insert_query(
-                f"""UPDATE CRF_RedCap SET deleted = 1 WHERE id_patient = %s""",
+                """UPDATE CRF_RedCap SET deleted = 1 WHERE id_patient = %s""",
                 [patient_id],
             )
             continue
@@ -725,7 +684,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         )
         if not patient_id:
             patient_id = db.run_insert_query(
-                f"""INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""",
+                """INSERT INTO patients (patient_name, patient_id) VALUES (%s, %s)""",
                 [patient_name, patient_name],
             )
         else:
@@ -733,13 +692,13 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 
         # Process log details from string into dictionary.
         instance = None
-        details = extract_details(log["details"] + ',')
+        details = extract_details(log["details"] + ",")
         crf_name = None
 
         # Get CRF
         for form, vars in master_form_var_dict.items():
             for form_var in vars:
-                regex = rf"^{form_var}(\([a-zA-z0-9]*\.?[a-zA-z0-9]*\))?$" # Handles multi choice var
+                regex = rf"^{form_var}(\([a-zA-z0-9]*\.?[a-zA-z0-9]*\))?$"  # Handles multi choice var
                 for detail_var in details:
                     if re.fullmatch(regex, detail_var):
                         crf_name = form
@@ -788,10 +747,18 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             ] = record_df["redcap_variable"].str.replace("___", "(")
 
             if not crf_row.empty:  # update
-                if f"{crf_name}_status" in record_df['redcap_variable'].to_list():
+                if f"{crf_name}_status" in record_df["redcap_variable"].to_list():
                     if (
-                        record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "4"
-                        or record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "5"
+                        record_df.loc[
+                            record_df["redcap_variable"] == f"{crf_name}_status",
+                            "value",
+                        ].iloc[0]
+                        == "4"
+                        or record_df.loc[
+                            record_df["redcap_variable"] == f"{crf_name}_status",
+                            "value",
+                        ].iloc[0]
+                        == "5"
                     ):
                         verified = 1
                         db.run_insert_query(
@@ -801,17 +768,19 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 crf_id = crf_row["id"].iloc[0]
                 record_df["id_crf"] = crf_id
 
-                db_vars = db.run_select_query("""SELECT redcap_variable FROM CRF_Data_RedCap WHERE id_crf = %s""", [crf_id.item()])
+                db_vars = db.run_select_query(
+                    """SELECT redcap_variable FROM CRF_Data_RedCap WHERE id_crf = %s""",
+                    [crf_id.item()],
+                )
                 db_vars = [v[0] for v in db_vars]
                 for _, row in record_df.iterrows():
-
-                    if row['redcap_variable'] in db_vars:
+                    if row["redcap_variable"] in db_vars:
                         db.run_insert_query(
                             "UPDATE CRF_Data_RedCap SET value = %s WHERE id_crf = %s AND redcap_variable = %s",
                             [row["value"], crf_id.item(), row["redcap_variable"]],
                         )
                     else:
-                        # this condition is from a previous method of inserting into the database only using logs. 
+                        # this condition is from a previous method of inserting into the database only using logs.
                         # The new(current 10/30/24) method initializes data into the data table with every value, the logs only used fields that were filled out.
                         # after api initializations crf data, the data is only updated, not inserted. So existing crf data before this implementation will never
                         # have their new values inserted, thus this else condition inserts the missing data
@@ -823,10 +792,18 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             elif crf_row.empty:  # insert
                 deleted = 0
                 verified = 0
-                if f"{crf_name}_status" in record_df['redcap_variable'].to_list():
+                if f"{crf_name}_status" in record_df["redcap_variable"].to_list():
                     if (
-                        record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "4"
-                        or record_df.loc[record_df['redcap_variable'] == f"{crf_name}_status", 'value'].iloc[0] == "5"
+                        record_df.loc[
+                            record_df["redcap_variable"] == f"{crf_name}_status",
+                            "value",
+                        ].iloc[0]
+                        == "4"
+                        or record_df.loc[
+                            record_df["redcap_variable"] == f"{crf_name}_status",
+                            "value",
+                        ].iloc[0]
+                        == "5"
                     ):
                         verified = 1
                 crf_id = db.run_insert_query(
@@ -873,11 +850,10 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
 # using main for testing purposes, manual backups
 if __name__ == "__main__":
     import AMBRA_Backups
-    import AMBRA_Utils
 
     testing = 0
-    db_name = 'CAPTIVA'
-    project_name = 'CAPTIVA DC'
+    db_name = "CAPTIVA_MRI"
+    project_name = "CAPTIVA MRI DC"
     # db_name = 'SISTER'
     # project_name = '29423 Vagal - SISTER'
     if testing:
@@ -888,8 +864,8 @@ if __name__ == "__main__":
     else:
         db = AMBRA_Backups.database.Database(db_name)
         project = get_redcap_project(project_name)
-
-    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project)
+    date = datetime(2024, 11, 14)
+    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project, start_date=date)
 
     # manual backup
     # start_date = datetime(2023, 1, 1)
