@@ -171,7 +171,7 @@ def attachment_audit(attachment):
     """
     try:
         html = attachment.get_content()
-    except:
+    except Exception:
         print('Error getting content for ', attachment)
     soup = BeautifulSoup(html, 'html.parser')
 
@@ -223,7 +223,7 @@ def extract_and_verify_crf_values(this_schema, soup):
         if encodings.startswith('decode'):
             # Python Variable Decoding
             template_string = Template(encodings)
-            if isinstance(value, str):
+            if isinstance(field_value, str):
                 to_eval = template_string.substitute(value=f"'{field_value}'")
             else:
                 to_eval = template_string.substitute(value=field_value)

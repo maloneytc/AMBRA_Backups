@@ -135,7 +135,7 @@ def backup_project(project_name, url, api_key, output_dir, bckp_files=True):
         repeating_out = output_dir.joinpath(f"{project_name}_repeating.json")
         with open(repeating_out, "w", encoding="utf-8") as f:
             json.dump(repeating_json, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
 
@@ -190,7 +190,7 @@ def get_project_schema(project_name, form):
     df["redcap_variable"] = df["export_field_name"]
 
     # This question_order functionality is only approximate. Should be double checked after schena insertion
-    df["question_order"] = df["export_field_name"].str.extract(r"(\d+)")
+    df["question_order"] = df["export_field_name"].str.extract(right"(\d+)")
 
     def apply_decimals(group):
         i = 0
@@ -486,46 +486,46 @@ def extract_details(details):
     details_dict = dict()
     if n == 1:
         return details_dict
-    l = 0
-    r = 1
+    left = 0
+    right = 1
 
-    while r < n:
+    while right < n:
         # If the current var is [instance = int]
-        if details[l] == '[':
-            check = details[l:l+12]
+        if details[left] == '[':
+            check = details[left:left+12]
             if check == '[instance = ':
-                substring = details[l:]
-                start = substring.index('= ') + 2 + l
-                end = substring.index(']') + l
+                substring = details[left:]
+                start = substring.index('= ') + 2 + left
+                end = substring.index(']') + left
                 details_dict['[instance]'] = int(details[start:end])
-                r = end + 1
+                right = end + 1
             else:
                 raise Exception("This case should not be possible")
         
         # For regular variables 
         else:
             # Extract variable
-            substring = details[l:]
-            end_var = substring.index(' = ') + l
-            variable = details[l:end_var]
+            substring = details[left:]
+            end_var = substring.index(' = ') + left
+            variable = details[left:end_var]
 
             # Find value attached to variable
             start_val = end_var + 3
-            r = start_val + 1
+            right = start_val + 1
 
             if details[start_val] == "'":
                 found_val = False
                 while not found_val:
-                    if r == n:
+                    if right == n:
                         found_val = True
                         continue
-                    current_r = details[r]
+                    current_r = details[right]
                     
                     # If found potential enclosing single quote
                     if current_r == "'": 
                         # Check if next character is a comma (eg `q1001 = '2', q1002 = '3'`)
-                        next_chr = details[r+1]
-                        r += 1
+                        next_chr = details[right+1]
+                        right += 1
 
                         # If comma and correct number of quotes so far, then assume enclosing quote
                         if next_chr == ",":
@@ -533,18 +533,18 @@ def extract_details(details):
                             continue
                     # Else keep going
                     else:
-                        r += 1
+                        right += 1
 
             # For cases like `q1003 = checked`
             else:
                 substring = details[start_val:]
-                r = substring.index(',') + start_val
+                right = substring.index(',') + start_val
             
-            val = details[start_val:r]
+            val = details[start_val:right]
             details_dict[variable] = val
 
-        l = r + 2
-        r = l + 1
+        left = right + 2
+        right = left + 1
 
     return details_dict
                                 

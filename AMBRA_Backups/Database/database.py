@@ -147,7 +147,7 @@ class Database():
 
         try:
             cls.create_db(db_name, config_path=config_path)
-        except:
+        except Exception:
             pass
 
         connection = cls.connect(db_name, config_path=config_path)
@@ -485,7 +485,7 @@ class Database():
             #                 study_date = datetime.strptime(f'{this_study_date} {this_study_time}', '%Y%m%d %H%M%S.%f')
             #             except ValueError:
             #                 study_date = datetime.strptime(f'{this_study_date} {this_study_time}', '%Y%m%d %H%M%S')
-            #         except:
+            #         except Exception:
             #             try:
             #                 study_date = datetime.strptime(study.study_date, '%Y-%m-%d')
             #             except ValueError:
@@ -494,10 +494,10 @@ class Database():
             #                 except ValueError:
             #                     try:
             #                         study_date = datetime.strptime(study.study_date, '%m/%d/%Y')
-            #                     except:
+            #                     except Exception:
             #                         try:
             #                             study_date = datetime.strptime(study.study_date, '%d/%m/%Y')
-            #                         except:
+            #                         except Exception:
             #                             study_date = None
         else:
             study_date = None
@@ -511,7 +511,7 @@ class Database():
 
                     cfields_values.append(cfield_value)
                     cfields_dbcols.append(custom_fields[custom_field])
-                except:
+                except Exception:
                     continue
 
         if custom_functions:
@@ -521,7 +521,7 @@ class Database():
 
                     cfields_values.append(cfield_value)
                     cfields_dbcols.append(custom_dbcol)
-                except:
+                except Exception:
                     continue
 
         def add_comma(this_list):
@@ -665,7 +665,7 @@ class Database():
 
         #try:
         series_tags = series.get_tags(0)
-        #except:
+        #except Exception:
         #    series_tags = None
 
         scanner_model = self.get_tag_value(series_tags, '0008', '1090')
@@ -856,7 +856,7 @@ class Database():
 
             try:
                 self.add_raw_nifti(nifti_file, series_uid)
-            except:
+            except Exception:
                 logging.warning(f'Could not add {nifti_file} to database.')
 
     # --------------------------------------------------------------------------
@@ -1175,7 +1175,7 @@ class Database():
             else:
                 try:
                     id_img_series = self.get_img_series_id(nifti_file, json_file)
-                except:
+                except Exception:
                     id_img_series = None
 
             try:
@@ -1184,7 +1184,7 @@ class Database():
                 # Most likely thrown if row already exists.
                 print(f'Could not add nifti: {nifti_file}', e)
                 continue
-            except:
+            except Exception:
                 print(f'Could not add nifti: {nifti_file}')
                 continue
 
@@ -1195,6 +1195,6 @@ class Database():
         calls add_nifti_dir.
 
         """
-        study_name = study_dir.name
+        # study_name = study_dir.name
         for nifti_dir in study_dir.glob('*_nii'):
             self.add_nifti_dir(nifti_dir)
