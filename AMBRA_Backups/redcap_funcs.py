@@ -444,7 +444,6 @@ def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
             start_date = start_date[0][1]
     if end_date is None:
         end_date = datetime.now()
-<<<<<<< HEAD
 
     if not only_record_logs:
         logs = project.export_logging(begin_time=start_date, end_time=end_date)
@@ -468,22 +467,6 @@ def grab_logs(db, project, only_record_logs, start_date=None, end_date=None):
 
         logs = log_add + log_delete + log_edit
         logs.sort(key=lambda log: datetime.strptime(log["timestamp"], "%Y-%m-%d %H:%M"))
-=======
-    logs = project.export_logging(begin_time=start_date, end_time=end_date)
-    
-    if only_record_logs:
-        # getting logs that modify records
-        record_action = ["Update record", "Create record", "Delete record"]
-        record_logs = [
-            log
-            for log in logs
-            if ((record_action[0] in log["action"]) 
-             or (record_action[1] in log["action"]) 
-             or (record_action[2] in log["action"]))
-        ]
-        record_logs.reverse()  # list starts with most recent. Flipping order to update chronologically
-        logs = record_logs
->>>>>>> e847c4d (Updated grab logs. The clause for searching for record modifications only found records named with digits. I removed the digit condition)
 
     return logs
 
