@@ -708,6 +708,10 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             )
             continue
 
+        # Grab instance if in details
+        if '[instance]' in details.keys():
+            instance = details['[instance]']
+
         if (instance is None) and (crf_name in repeating_forms):
             instance = 1
 
@@ -852,8 +856,8 @@ if __name__ == "__main__":
     import AMBRA_Backups
 
     testing = 0
-    db_name = "CAPTIVA_MRI"
-    project_name = "CAPTIVA MRI DC"
+    db_name = "CAPTIVA"
+    project_name = "CAPTIVA DC"
     # db_name = 'SISTER'
     # project_name = '29423 Vagal - SISTER'
     if testing:
@@ -864,8 +868,8 @@ if __name__ == "__main__":
     else:
         db = AMBRA_Backups.database.Database(db_name)
         project = get_redcap_project(project_name)
-    date = datetime(2024, 11, 14)
-    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project, start_date=date)
+    date = datetime(2024, 12, 3)
+    AMBRA_Backups.redcap_funcs.project_data_to_db(db, project)
 
     # manual backup
     # start_date = datetime(2023, 1, 1)
