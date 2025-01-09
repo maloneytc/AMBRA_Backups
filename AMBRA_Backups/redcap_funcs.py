@@ -194,7 +194,7 @@ def get_project_schema(project_name, form):
     def apply_decimals(group):
         i = 0
         for idx, row in group.iterrows():
-            group.at[idx, "question_order"] = row["question_order"] + f".{(i+1):02}"
+            group.at[idx, "question_order"] = row["question_order"] + f".{(i + 1):02}"
             i += 1
         return group
 
@@ -565,11 +565,11 @@ def export_records_wrapper(project, patient_name, crf_name, instance=None):
     form_df = form_df[form_df[crf_name + "_complete"] != ""]
     if instance:
         if "redcap_repeat_instrument" not in form_df.columns:
-            raise ValueError(f"""Project '{project.export_project_info()['project_title']}' does not have repeat instances.
+            raise ValueError(f"""Project '{project.export_project_info()["project_title"]}' does not have repeat instances.
                                \npatient_name: {patient_name}, crf_name: {crf_name}""")
         if instance not in form_df["redcap_repeat_instance"].to_list():
-            raise ValueError(f"""Instance: {instance} not of available instances: {form_df['redcap_repeat_instance'].to_list()}
-                               \nIn project: {project.export_project_info()['project_title']}, crf_name: {crf_name}, patient_name: {patient_name}""")
+            raise ValueError(f"""Instance: {instance} not of available instances: {form_df["redcap_repeat_instance"].to_list()}
+                               \nIn project: {project.export_project_info()["project_title"]}, crf_name: {crf_name}, patient_name: {patient_name}""")
         form_df = form_df[form_df["redcap_repeat_instance"] == instance]
     return form_df
 
@@ -709,8 +709,8 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             continue
 
         # Grab instance if in details
-        if '[instance]' in details.keys():
-            instance = details['[instance]']
+        if "[instance]" in details.keys():
+            instance = details["[instance]"]
 
         if (instance is None) and (crf_name in repeating_forms):
             instance = 1
@@ -718,7 +718,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         crf_row = pd.DataFrame(
             db.run_select_query(
                 f"""SELECT * FROM CRF_RedCap WHERE id_patient = {patient_id} AND crf_name = \'{crf_name}\' 
-                                    AND instance {'IS NULL' if instance is None else f'= {instance}'} AND deleted = '0'""",
+                                    AND instance {"IS NULL" if instance is None else f"= {instance}"} AND deleted = '0'""",
                 column_names=True,
             )
         )  # cant use run_select_query.record here, because ('IS NULL' or '= #') is not a valid sql variable
@@ -826,7 +826,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         failed_string = ""
         failed_string = failed_string + "------------------------------------\n"
         failed_string = (
-            failed_string + f'data export date: {datetime.now().strftime("%Y-%m-%d")}\n'
+            failed_string + f"data export date: {datetime.now().strftime('%Y-%m-%d')}\n"
         )
         for log in failed_to_add:
             failed_string = failed_string + "------------\n"
