@@ -13,3 +13,6 @@ To run tests, run:
 ```
 pytest test
 ```
+
+# Notes
+May not be compatible with python 3.13. `mysql.connector.connect` returns None upon initialization. Works with python <=3.12
