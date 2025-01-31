@@ -780,6 +780,7 @@ class Database:
 
         self.add_to_series_map(series.formatted_description)
 
+    # --------------------------------------------------------------------------
     def is_zip_corrupt(zip_file_path):
         """
         unzips file using ZipFile, reads README.txt as additional 
@@ -814,6 +815,7 @@ class Database:
         download_date,
         is_downloaded=True,
         uuid=None,
+        verify_zip=True
     ):
         """
         Use paths relative to the backup directory.
@@ -835,6 +837,7 @@ class Database:
         """
         if zip_path is not None:
             zip_path = str(zip_path)
+            
             is_downloaded = self.is_zip_corrupt(zip_path)
         else:
             is_downloaded = False
