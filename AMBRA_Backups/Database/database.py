@@ -9,6 +9,7 @@ import hashlib
 import json
 import nibabel as nib
 from time import sleep
+import zipfile
 
 from AMBRA_Utils import Series
 
@@ -779,6 +780,31 @@ class Database:
 
         self.add_to_series_map(series.formatted_description)
 
+    def is_zip_corrupt(zip_file_path):
+        """
+        unzips file using ZipFile, reads README.txt as additional 
+        criteria after successful unzip
+
+        zip_file_path: str
+            Path to the zip file relative to the backup directory.
+        """
+
+        zip_file_path = Path(zip_file_path)
+        if not zip_file_path.exists():
+            raise Exception("The zip file does not exist.")
+        try:
+            with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+                # Test reading a file from the zip
+                zip_ref.read('README.txt')  
+                # If no exception is raised, the zip is likely not corrupt
+                return False
+        except zipfile.BadZipfile:
+            # If a BadZipFile exception is raised, the zip is corrupt
+            return True
+        except KeyError:
+            # Raised when the zip does not contain a README.txt file
+            return True
+
     # --------------------------------------------------------------------------
     def set_study_is_downloaded(
         self,
@@ -809,10 +835,12 @@ class Database:
         """
         if zip_path is not None:
             zip_path = str(zip_path)
+            is_downloaded = self.is_zip_corrupt(zip_path)
+        else:
+            is_downloaded = False
         if nifti_dir is not None:
             nifti_dir = str(nifti_dir)
-        if is_downloaded is not None:
-            is_downloaded = bool(is_downloaded)
+        
 
         with self.connection.cursor() as cursor:
             download_query = """UPDATE studies SET is_downloaded = %s, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s"""
