@@ -837,13 +837,13 @@ class Database:
         """
         if zip_path is not None:
             zip_path = str(zip_path)
-            
-            is_downloaded = self.is_zip_corrupt(zip_path)
-        else:
-            is_downloaded = False
+            if verify_zip:
+                is_downloaded = self.is_zip_corrupt(zip_path)
+            elif is_downloaded is not None:
+                is_downloaded = bool(is_downloaded)
         if nifti_dir is not None:
             nifti_dir = str(nifti_dir)
-        
+            
 
         with self.connection.cursor() as cursor:
             download_query = """UPDATE studies SET is_downloaded = %s, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s"""
