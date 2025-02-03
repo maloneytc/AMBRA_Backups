@@ -783,7 +783,7 @@ class Database:
     # --------------------------------------------------------------------------
     def is_zip_corrupt(zip_file_path):
         """
-        unzips file using ZipFile, reads README.txt as additional 
+        unzips file using ZipFile, reads README.txt as additional
         criteria after successful unzip
 
         zip_file_path: str
@@ -794,9 +794,9 @@ class Database:
         if not zip_file_path.exists():
             raise Exception("The zip file does not exist.")
         try:
-            with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+            with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
                 # Test reading a file from the zip
-                zip_ref.read('README.txt')  
+                zip_ref.read("README.txt")
                 # If no exception is raised, the zip is likely not corrupt
                 return False
         except zipfile.BadZipfile:
@@ -815,7 +815,7 @@ class Database:
         download_date,
         is_downloaded=True,
         uuid=None,
-        verify_zip=True
+        verify_zip=True,
     ):
         """
         Use paths relative to the backup directory.
@@ -845,7 +845,6 @@ class Database:
                 is_downloaded = bool(is_downloaded)
         if nifti_dir is not None:
             nifti_dir = str(nifti_dir)
-            
 
         with self.connection.cursor() as cursor:
             download_query = """UPDATE studies SET is_downloaded = %s, zip_path = %s, nifti_directory = %s, download_date=%s WHERE study_uid=%s"""
