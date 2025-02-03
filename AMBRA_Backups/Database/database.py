@@ -834,6 +834,8 @@ class Database:
             The value to set is_downloaded in the database. Default: True
         uuid: str
             If the uuid is not None, then this will also be used in the SQL query to identify the study.
+        verify_zip: bool
+            flag for specifying if zip_path should be verified it is not corrupt
         """
         if zip_path is not None:
             zip_path = str(zip_path)
