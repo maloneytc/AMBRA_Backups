@@ -695,6 +695,13 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
         details = extract_details(log["details"] + ",")
         crf_name = None
 
+        # Grab instance if in details
+        if "[instance]" in details:
+            # If the log contains the instance number and nothing else, no other data was changed
+            if len(details) == 1:
+                continue
+            instance = details["[instance]"]
+
         # Get CRF
         for form, vars in master_form_var_dict.items():
             for form_var in vars:
@@ -707,10 +714,6 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
                 (patient_name, log["timestamp"], f"redcap_variables: {log}")
             )
             continue
-
-        # Grab instance if in details
-        if "[instance]" in details.keys():
-            instance = details["[instance]"]
 
         if (instance is None) and (crf_name in repeating_forms):
             instance = 1
