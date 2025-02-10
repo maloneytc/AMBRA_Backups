@@ -701,7 +701,7 @@ def project_data_to_db(db, project, start_date=None, end_date=None):
             if len(details) == 1:
                 continue
             instance = details["[instance]"]
-        
+
         # Get CRF
         for form, vars in master_form_var_dict.items():
             for form_var in vars:
