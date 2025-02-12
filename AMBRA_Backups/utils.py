@@ -8,8 +8,11 @@ import shutil
 import pandas as pd
 import hashlib
 
+
 # ------------------------------------------------------------------------------
-def format_exception(exception_type: BaseException, exception_msg: str, exception_resolution: str):
+def format_exception(
+    exception_type: BaseException, exception_msg: str, exception_resolution: str
+):
     """
     Raises specified Exception with nicer formatting. Example"
     :
@@ -22,23 +25,24 @@ def format_exception(exception_type: BaseException, exception_msg: str, exceptio
 
     Inputs:
     --------
-    exception_type (BaseException): 
+    exception_type (BaseException):
         Exception type
 
-    exception_msg (str): 
+    exception_msg (str):
         Exception message
 
-    exception_resolution (str): 
+    exception_resolution (str):
         Suggestion on how to resolve the error
     """
-    raise exception_type(f'''
+    raise exception_type(f"""
     ########################
     # 
     #   {exception_type.__name__}: {exception_msg}
     #   Resolution: {exception_resolution}
     # 
     ########################
-    ''')
+    """)
+
 
 # ------------------------------------------------------------------------------
 def hash_file(file_path):
