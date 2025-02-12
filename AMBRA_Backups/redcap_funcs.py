@@ -477,7 +477,7 @@ def extract_details(details):
 
     - left right pointer
     - left pointer indicates start of info, right pointer end of info
-    - keep a list of stuff like quotes to keep in track the closign quotes
+    - keep a list of stuff like quotes to keep in track the closing quotes
     - right pointer must be at the ending quote (except when it's the ~checked~ case
     - set left pointer to be at next thing always
     """
