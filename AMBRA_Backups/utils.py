@@ -10,6 +10,41 @@ import hashlib
 
 
 # ------------------------------------------------------------------------------
+def format_exception(
+    exception_type: BaseException, exception_msg: str, exception_resolution: str
+):
+    """
+    Raises specified Exception with nicer formatting. Example"
+    :
+    #########################
+    #
+    # ValueError: The REDCap's project name and the name in the DB are different
+    # Resolution: Harmonize the two names
+    #
+    #########################
+
+    Inputs:
+    --------
+    exception_type (BaseException):
+        Exception type
+
+    exception_msg (str):
+        Exception message
+
+    exception_resolution (str):
+        Suggestion on how to resolve the error
+    """
+    raise exception_type(f"""
+    ########################
+    # 
+    #   {exception_type.__name__}: {exception_msg}
+    #   Resolution: {exception_resolution}
+    # 
+    ########################
+    """)
+
+
+# ------------------------------------------------------------------------------
 def hash_file(file_path):
     """
     Returns the md5 hash of the file at file_path.
