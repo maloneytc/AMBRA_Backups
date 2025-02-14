@@ -781,7 +781,7 @@ class Database:
         self.add_to_series_map(series.formatted_description)
 
     # --------------------------------------------------------------------------
-    def is_zip_corrupt(zip_file_path):
+    def is_zip_corrupt(self, zip_file_path):
         """
         unzips file using ZipFile, reads README.txt as additional
         criteria after successful unzip
