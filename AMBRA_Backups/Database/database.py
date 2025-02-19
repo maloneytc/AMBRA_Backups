@@ -784,7 +784,7 @@ class Database:
     def is_zip_corrupt(self, zip_file_path):
         """
         Loads file using ZipFile, reads README.txt as additional
-        criteria after successful unzip. Returns True if the zip 
+        criteria after successful unzip. Returns True if the zip
         file is corrupt and False if not.
 
         zip_file_path: str
