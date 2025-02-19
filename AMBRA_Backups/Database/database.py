@@ -783,8 +783,9 @@ class Database:
     # --------------------------------------------------------------------------
     def is_zip_corrupt(self, zip_file_path):
         """
-        unzips file using ZipFile, reads README.txt as additional
-        criteria after successful unzip
+        Loads file using ZipFile, reads README.txt as additional
+        criteria after successful unzip. Returns True if the zip 
+        file is corrupt and False if not.
 
         zip_file_path: str
             Path to the zip file relative to the backup directory.
@@ -840,7 +841,7 @@ class Database:
         if zip_path is not None:
             zip_path = str(zip_path)
             if verify_zip:
-                is_downloaded = self.is_zip_corrupt(zip_path)
+                is_downloaded = not self.is_zip_corrupt(zip_path)
             elif is_downloaded is not None:
                 is_downloaded = bool(is_downloaded)
         if nifti_dir is not None:
